@@ -122,8 +122,16 @@ export function DashboardView({
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <Button size="lg" className="shadow-2xl shadow-primary/20 hover:shadow-primary/40 transition-shadow">
-                                {role === "arbitrator" ? <><FileText className="mr-2 h-4 w-4" /> Create Case</> : <><Settings className="mr-2 h-4 w-4" /> Global Settings</>}
+                            <Button size="lg" className="shadow-2xl shadow-primary/20 hover:shadow-primary/40 transition-shadow" asChild>
+                                {role === "arbitrator" ? (
+                                    <a href={`/orgs/${organizationName || 'demo'}/cases/new`}>
+                                        <FileText className="mr-2 h-4 w-4" /> Create Case
+                                    </a>
+                                ) : (
+                                    <a href={`/orgs/${organizationName || 'demo'}/settings/history`}>
+                                        <Settings className="mr-2 h-4 w-4" /> Global Settings
+                                    </a>
+                                )}
                             </Button>
                         </CardContent>
                     </Card>
@@ -189,8 +197,11 @@ export function DashboardView({
                                     </div>
                                 </CardContent>
                                 <CardFooter>
-                                    <Button variant="outline" className="w-full">
-                                        Invite Members
+                                    <Button variant="outline" className="w-full" asChild>
+                                        <a href={`/orgs/${organizationName || 'demo'}/settings/history`}>
+                                            <FileText className="mr-2 h-4 w-4" />
+                                            Upload Historical Data
+                                        </a>
                                     </Button>
                                 </CardFooter>
                             </Card>
