@@ -6,86 +6,401 @@
     {
       "ref": "Arbitration Rule 1",
       "mandatory": true,
-      "summary": "Arbitration proceedings are governed by the ICSID Convention, the Arbitration Rules, and any party agreement. The Rules operate as binding constraints.",
+      "summary": "Arbitration proceedings are governed by the ICSID Convention, the Arbitration Rules, and any agreement of the parties, subject to mandatory provisions.",
       "ai_usage": "classification_only",
       "parameter_tag": "rule_hierarchy"
     },
     {
       "ref": "Arbitration Rule 2",
       "mandatory": true,
-      "summary": "Requires identification of parties and authorised representatives and submission of proper authority documentation.",
+      "summary": "Parties must identify themselves and their authorised representatives and provide evidence of authority to act.",
       "ai_usage": "extraction_and_flagging",
       "parameter_tag": "party_representation"
     },
     {
+      "ref": "Arbitration Rule 3",
+      "mandatory": true,
+      "summary": "Written communications must comply with formal requirements regarding content, format, and completeness.",
+      "ai_usage": "format_validation",
+      "parameter_tag": "written_communications"
+    },
+    {
+      "ref": "Arbitration Rule 4",
+      "mandatory": true,
+      "summary": "Establishes how time limits are calculated for all procedural acts.",
+      "ai_usage": "deadline_computation",
+      "parameter_tag": "time_calculation"
+    },
+    {
+      "ref": "Arbitration Rule 5",
+      "mandatory": true,
+      "summary": "Allows the Secretary-General to fix time limits where the Rules or Tribunal have not done so.",
+      "ai_usage": "deadline_extraction",
+      "parameter_tag": "secretariat_timelines"
+    },
+    {
       "ref": "Arbitration Rule 6",
       "mandatory": true,
-      "summary": "Governs filing, routing, and service of documents through the ICSID Secretariat to ensure equal notice.",
+      "summary": "All documents must be filed with the Secretary-General, who transmits them to the Tribunal and other party.",
       "ai_usage": "service_completeness_checks",
       "parameter_tag": "document_service"
     },
     {
       "ref": "Arbitration Rule 7",
       "mandatory": false,
-      "summary": "Allows the Tribunal to determine the language of the arbitration, subject to party submissions and fairness.",
+      "summary": "The Tribunal determines the language or languages of the arbitration after consulting the parties.",
       "ai_usage": "language_impact_analysis",
       "parameter_tag": "procedural_language"
+    },
+    {
+      "ref": "Arbitration Rule 8",
+      "mandatory": false,
+      "summary": "Proceedings may be held in person, remotely, or in hybrid form as determined by the Tribunal.",
+      "ai_usage": "remote_feasibility_analysis",
+      "parameter_tag": "remote_proceedings"
+    },
+    {
+      "ref": "Arbitration Rule 9",
+      "mandatory": true,
+      "summary": "Arbitrators must be and remain independent and impartial and comply with disclosure obligations.",
+      "ai_usage": "conflict_flagging",
+      "parameter_tag": "arbitrator_independence"
+    },
+    {
+      "ref": "Arbitration Rule 10",
+      "mandatory": true,
+      "summary": "Sets out the method for constituting the Tribunal in accordance with the Convention and Rules.",
+      "ai_usage": "state_tracking",
+      "parameter_tag": "tribunal_constitution"
+    },
+    {
+      "ref": "Arbitration Rule 11",
+      "mandatory": true,
+      "summary": "Arbitrators must formally accept their appointment before serving.",
+      "ai_usage": "appointment_status_tracking",
+      "parameter_tag": "appointment_acceptance"
+    },
+    {
+      "ref": "Arbitration Rule 12",
+      "mandatory": true,
+      "summary": "Arbitrators must disclose circumstances likely to give rise to doubts as to independence or impartiality.",
+      "ai_usage": "disclosure_tracking",
+      "parameter_tag": "arbitrator_disclosure"
+    },
+    {
+      "ref": "Arbitration Rule 13",
+      "mandatory": true,
+      "summary": "Governs appointment of arbitrators by the parties or by the Chairman where applicable.",
+      "ai_usage": "appointment_flow_tracking",
+      "parameter_tag": "arbitrator_appointment"
+    },
+    {
+      "ref": "Arbitration Rule 14",
+      "mandatory": true,
+      "summary": "Appointments of arbitrators are subject to confirmation by the Secretary-General.",
+      "ai_usage": "confirmation_tracking",
+      "parameter_tag": "appointment_confirmation"
+    },
+    {
+      "ref": "Arbitration Rule 15",
+      "mandatory": true,
+      "summary": "Allows parties to propose the disqualification of arbitrators.",
+      "ai_usage": "challenge_intake",
+      "parameter_tag": "arbitrator_challenges"
+    },
+    {
+      "ref": "Arbitration Rule 16",
+      "mandatory": true,
+      "summary": "Prescribes the procedure and timelines for proposals to disqualify arbitrators.",
+      "ai_usage": "deadline_monitoring",
+      "parameter_tag": "challenge_procedure"
+    },
+    {
+      "ref": "Arbitration Rule 17",
+      "mandatory": true,
+      "summary": "Regulates replacement of arbitrators in cases of resignation, incapacity, or disqualification.",
+      "ai_usage": "vacancy_monitoring",
+      "parameter_tag": "arbitrator_replacement"
+    },
+    {
+      "ref": "Arbitration Rule 18",
+      "mandatory": true,
+      "summary": "Proceedings resume after replacement of an arbitrator as determined by the Tribunal.",
+      "ai_usage": "state_transition_tracking",
+      "parameter_tag": "resumption"
+    },
+    {
+      "ref": "Arbitration Rule 19",
+      "mandatory": false,
+      "summary": "Requires disclosure of third-party funding arrangements where applicable.",
+      "ai_usage": "funding_disclosure_tracking",
+      "parameter_tag": "third_party_funding"
+    },
+    {
+      "ref": "Arbitration Rule 20",
+      "mandatory": true,
+      "summary": "The Tribunal may issue procedural orders to conduct the arbitration efficiently.",
+      "ai_usage": "order_extraction",
+      "parameter_tag": "procedural_orders"
+    },
+    {
+      "ref": "Arbitration Rule 21",
+      "mandatory": true,
+      "summary": "Confirms the general powers of the Tribunal to manage the proceedings.",
+      "ai_usage": "power_mapping",
+      "parameter_tag": "tribunal_powers"
     },
     {
       "ref": "Arbitration Rule 22",
       "mandatory": true,
       "summary": "Establishes strict timelines and procedure for proposals to disqualify arbitrators.",
       "ai_usage": "deadline_monitoring",
-      "parameter_tag": "arbitrator_challenges"
+      "parameter_tag": "arbitrator_disqualification"
+    },
+    {
+      "ref": "Arbitration Rule 23",
+      "mandatory": false,
+      "summary": "Allows the Tribunal to recommend provisional measures.",
+      "ai_usage": "interim_measure_pattern_analysis",
+      "parameter_tag": "provisional_measures"
+    },
+    {
+      "ref": "Arbitration Rule 24",
+      "mandatory": false,
+      "summary": "Allows the Tribunal to order security for costs.",
+      "ai_usage": "risk_flagging",
+      "parameter_tag": "security_for_costs"
+    },
+    {
+      "ref": "Arbitration Rule 25",
+      "mandatory": false,
+      "summary": "Regulates preliminary objections to the Tribunal’s jurisdiction or competence.",
+      "ai_usage": "timeline_optimisation",
+      "parameter_tag": "preliminary_objections"
+    },
+    {
+      "ref": "Arbitration Rule 26",
+      "mandatory": true,
+      "summary": "Specifies how objections to jurisdiction are to be raised and decided.",
+      "ai_usage": "jurisdictional_mapping",
+      "parameter_tag": "jurisdiction_objections"
+    },
+    {
+      "ref": "Arbitration Rule 27",
+      "mandatory": false,
+      "summary": "Allows incidental, additional, or counterclaims within the scope of consent and jurisdiction.",
+      "ai_usage": "claim_scope_analysis",
+      "parameter_tag": "ancillary_claims"
+    },
+    {
+      "ref": "Arbitration Rule 28",
+      "mandatory": true,
+      "summary": "Requires the arbitration to be conducted in an orderly and efficient manner.",
+      "ai_usage": "process_monitoring",
+      "parameter_tag": "conduct_of_proceedings"
     },
     {
       "ref": "Arbitration Rule 29",
       "mandatory": true,
-      "summary": "Requires a first procedural session to organise the arbitration and determine the procedural framework.",
+      "summary": "Requires a first procedural session to organise the arbitration.",
       "ai_usage": "agenda_extraction",
       "parameter_tag": "procedural_calendar"
     },
     {
       "ref": "Arbitration Rule 30",
       "mandatory": true,
-      "summary": "Regulates written submissions and prevents unscheduled or excessive filings without Tribunal authorisation.",
+      "summary": "Governs written submissions and prohibits unauthorised filings.",
       "ai_usage": "submission_tracking",
       "parameter_tag": "written_procedure"
     },
     {
+      "ref": "Arbitration Rule 31",
+      "mandatory": true,
+      "summary": "Allows the Tribunal to set time limits for submissions.",
+      "ai_usage": "deadline_tracking",
+      "parameter_tag": "submission_timelines"
+    },
+    {
       "ref": "Arbitration Rule 32",
       "mandatory": true,
-      "summary": "Regulates hearings, including format, conduct, and the opportunity for parties to present oral arguments.",
+      "summary": "Regulates hearings, including format and conduct.",
       "ai_usage": "hearing_structure_benchmarking",
       "parameter_tag": "hearing_management"
     },
     {
+      "ref": "Arbitration Rule 33",
+      "mandatory": false,
+      "summary": "Regulates witness and expert evidence.",
+      "ai_usage": "evidence_pattern_analysis",
+      "parameter_tag": "witness_management"
+    },
+    {
+      "ref": "Arbitration Rule 34",
+      "mandatory": false,
+      "summary": "Empowers the Tribunal to order document production.",
+      "ai_usage": "document_request_optimisation",
+      "parameter_tag": "document_production"
+    },
+    {
       "ref": "Arbitration Rule 35",
       "mandatory": true,
-      "summary": "Requires decisions of the Tribunal to be taken by a majority of its members.",
+      "summary": "Decisions of the Tribunal are taken by majority vote.",
       "ai_usage": "deviation_flagging_only",
       "parameter_tag": "tribunal_decision_method"
     },
     {
       "ref": "Arbitration Rule 36",
       "mandatory": true,
-      "summary": "Confirms the Tribunal’s power to call for evidence and regulate the burden of proof.",
+      "summary": "Confirms the Tribunal’s power over evidence and burden of proof.",
       "ai_usage": "procedural_risk_flagging",
       "parameter_tag": "evidence_management"
     },
     {
+      "ref": "Arbitration Rule 37",
+      "mandatory": true,
+      "summary": "Defines closure of the proceedings.",
+      "ai_usage": "state_transition_tracking",
+      "parameter_tag": "closure"
+    },
+    {
+      "ref": "Arbitration Rule 38",
+      "mandatory": true,
+      "summary": "Regulates deliberations of the Tribunal.",
+      "ai_usage": "process_tracking",
+      "parameter_tag": "deliberations"
+    },
+    {
+      "ref": "Arbitration Rule 39",
+      "mandatory": true,
+      "summary": "Specifies the form and content of the award.",
+      "ai_usage": "award_structure_validation",
+      "parameter_tag": "award_form"
+    },
+    {
+      "ref": "Arbitration Rule 40",
+      "mandatory": true,
+      "summary": "Confirms the applicable law for deciding the dispute.",
+      "ai_usage": "law_mapping",
+      "parameter_tag": "applicable_law"
+    },
+    {
+      "ref": "Arbitration Rule 41",
+      "mandatory": true,
+      "summary": "Regulates decisions on jurisdiction.",
+      "ai_usage": "jurisdiction_decision_tracking",
+      "parameter_tag": "jurisdiction_decisions"
+    },
+    {
       "ref": "Arbitration Rule 42",
       "mandatory": false,
-      "summary": "Allows bifurcation of proceedings at the discretion of the Tribunal.",
+      "summary": "Allows bifurcation of proceedings at the Tribunal’s discretion.",
       "ai_usage": "historical_outcome_analysis",
-      "parameter_tag": "bifurcation_analysis"
+      "parameter_tag": "bifurcation"
     },
     {
       "ref": "Arbitration Rule 43",
       "mandatory": false,
-      "summary": "Regulates preliminary objections, including timing and sequencing with merits.",
+      "summary": "Regulates preliminary objections and their sequencing.",
       "ai_usage": "timeline_optimisation",
-      "parameter_tag": "preliminary_objections"
+      "parameter_tag": "preliminary_objections_sequencing"
+    },
+    {
+      "ref": "Arbitration Rule 44",
+      "mandatory": false,
+      "summary": "Allows issuance of provisional measures during the arbitration.",
+      "ai_usage": "interim_measure_analysis",
+      "parameter_tag": "provisional_measures_repeat"
+    },
+    {
+      "ref": "Arbitration Rule 45",
+      "mandatory": true,
+      "summary": "Addresses default of a party and continuation of proceedings.",
+      "ai_usage": "default_detection",
+      "parameter_tag": "party_default"
+    },
+    {
+      "ref": "Arbitration Rule 46",
+      "mandatory": true,
+      "summary": "Allows supplementary decisions on issues omitted from the award.",
+      "ai_usage": "post_award_tracking",
+      "parameter_tag": "supplementary_decisions"
+    },
+    {
+      "ref": "Arbitration Rule 47",
+      "mandatory": true,
+      "summary": "Allows rectification of clerical or similar errors in the award.",
+      "ai_usage": "error_detection",
+      "parameter_tag": "award_rectification"
+    },
+    {
+      "ref": "Arbitration Rule 48",
+      "mandatory": true,
+      "summary": "Allows interpretation of the award upon request.",
+      "ai_usage": "interpretation_tracking",
+      "parameter_tag": "award_interpretation"
+    },
+    {
+      "ref": "Arbitration Rule 49",
+      "mandatory": true,
+      "summary": "Allows revision of the award based on discovery of new decisive facts.",
+      "ai_usage": "revision_window_tracking",
+      "parameter_tag": "award_revision"
+    },
+    {
+      "ref": "Arbitration Rule 50",
+      "mandatory": false,
+      "summary": "Allows discontinuance of proceedings by agreement of the parties.",
+      "ai_usage": "termination_state_tracking",
+      "parameter_tag": "discontinuance_by_agreement"
+    },
+    {
+      "ref": "Arbitration Rule 51",
+      "mandatory": false,
+      "summary": "Allows unilateral discontinuance under prescribed conditions.",
+      "ai_usage": "termination_state_tracking",
+      "parameter_tag": "unilateral_discontinuance"
+    },
+    {
+      "ref": "Arbitration Rule 52",
+      "mandatory": true,
+      "summary": "Regulates costs of the proceeding.",
+      "ai_usage": "costs_extraction",
+      "parameter_tag": "costs"
+    },
+    {
+      "ref": "Arbitration Rule 53",
+      "mandatory": true,
+      "summary": "Governs allocation of costs between the parties.",
+      "ai_usage": "allocation_analysis",
+      "parameter_tag": "cost_allocation"
+    },
+    {
+      "ref": "Arbitration Rule 54",
+      "mandatory": true,
+      "summary": "Regulates advance payments and fees.",
+      "ai_usage": "payment_tracking",
+      "parameter_tag": "fees_and_advances"
+    },
+    {
+      "ref": "Arbitration Rule 55",
+      "mandatory": false,
+      "summary": "Allows publication of awards and decisions subject to consent and transparency rules.",
+      "ai_usage": "publication_eligibility_check",
+      "parameter_tag": "transparency"
+    },
+    {
+      "ref": "Arbitration Rule 56",
+      "mandatory": false,
+      "summary": "Allows consolidation of proceedings where legally permissible.",
+      "ai_usage": "case_overlap_detection",
+      "parameter_tag": "consolidation"
+    },
+    {
+      "ref": "Arbitration Rule 57",
+      "mandatory": false,
+      "summary": "Allows coordination of related proceedings.",
+      "ai_usage": "coordination_mapping",
+      "parameter_tag": "coordination"
     },
     {
       "ref": "Arbitration Rule 58",
@@ -97,7 +412,7 @@
     {
       "ref": "Chapter XII – Expedited Arbitration",
       "mandatory": false,
-      "summary": "Provides an optional expedited arbitration regime with compressed timelines and procedural simplifications.",
+      "summary": "Provides an optional expedited arbitration regime with compressed timelines and simplified procedure.",
       "ai_usage": "suitability_and_deadline_monitoring",
       "parameter_tag": "expedited_procedure"
     }

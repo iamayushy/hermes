@@ -1,20 +1,93 @@
 {
   "institution": "ICSID",
   "document_type": "convention",
+  "version": "ICSID Convention (entered into force October 14, 1966)",
   "rules": [
+    {
+      "ref": "Convention Article 1",
+      "title": "Establishment of the Centre",
+      "mandatory": true,
+      "summary": "Establishes the International Centre for Settlement of Investment Disputes to provide facilities for conciliation and arbitration of investment disputes between Contracting States and nationals of other Contracting States.",
+      "raw_scope": "institutional foundation",
+      "parameter_tag": "icsid_establishment"
+    },
+    {
+      "ref": "Convention Article 2",
+      "title": "Seat of the Centre",
+      "mandatory": true,
+      "summary": "The seat of the Centre shall be at the principal office of the World Bank, subject to relocation by a two-thirds majority decision of the Administrative Council.",
+      "raw_scope": "institutional location",
+      "parameter_tag": "centre_seat"
+    },
+    {
+      "ref": "Convention Article 6",
+      "title": "Functions of the Administrative Council",
+      "mandatory": true,
+      "summary": "Administrative Council adopts administrative and financial regulations, institutional rules, and conciliation and arbitration rules. Key decisions require a two-thirds majority.",
+      "raw_scope": "rule-making authority",
+      "parameter_tag": "council_functions"
+    },
+    {
+      "ref": "Convention Article 14",
+      "title": "Qualifications of Panel Members",
+      "mandatory": true,
+      "summary": "Panel members must be persons of high moral character and recognized competence, capable of independent judgment, with particular emphasis on legal competence for arbitrators.",
+      "raw_scope": "arbitrator qualifications",
+      "parameter_tag": "panel_qualifications"
+    },
+    {
+      "ref": "Convention Article 25",
+      "title": "Jurisdiction of the Centre",
+      "mandatory": true,
+      "summary": "ICSID jurisdiction covers legal disputes arising directly out of an investment between a Contracting State and a national of another Contracting State, based on written consent which cannot be unilaterally withdrawn.",
+      "raw_scope": "jurisdictional requirements",
+      "parameter_tag": "jurisdiction_consent"
+    },
+    {
+      "ref": "Convention Article 26",
+      "title": "Consent to Arbitration as Exclusive Remedy",
+      "mandatory": true,
+      "summary": "Consent to ICSID arbitration excludes other remedies unless otherwise stated. A State may require exhaustion of local remedies as a condition of consent.",
+      "raw_scope": "remedy exclusivity",
+      "parameter_tag": "exclusive_remedy"
+    },
+    {
+      "ref": "Convention Article 27",
+      "title": "Prohibition of Diplomatic Protection",
+      "mandatory": true,
+      "summary": "Contracting States may not exercise diplomatic protection regarding disputes submitted to ICSID arbitration unless the award is not complied with.",
+      "raw_scope": "diplomatic protection waiver",
+      "parameter_tag": "diplomatic_protection"
+    },
+    {
+      "ref": "Convention Article 36",
+      "title": "Request for Arbitration",
+      "mandatory": true,
+      "summary": "Arbitration proceedings are instituted by written request to the Secretary-General containing party details, issues in dispute, and proof of consent.",
+      "raw_scope": "proceeding initiation",
+      "parameter_tag": "arbitration_request"
+    },
     {
       "ref": "Convention Article 37",
       "title": "Constitution of the Tribunal",
       "mandatory": true,
-      "summary": "Defines how the arbitral tribunal is constituted and prevents proceedings from being frustrated by lack of agreement.",
+      "summary": "Tribunal consists of a sole arbitrator or an uneven number as agreed by the parties; default is three arbitrators if no agreement exists.",
       "raw_scope": "tribunal constitution",
       "parameter_tag": "tribunal_composition"
+    },
+    {
+      "ref": "Convention Article 38",
+      "title": "Appointment by the Chairman",
+      "mandatory": true,
+      "summary": "If tribunal constitution fails within 90 days, the Chairman appoints missing arbitrators, who must not be nationals of the disputing States.",
+      "raw_scope": "default appointment mechanism",
+      "parameter_tag": "chairman_appointment"
     },
     {
       "ref": "Convention Article 39",
       "title": "Nationality of Arbitrators",
       "mandatory": true,
-      "summary": "Requires that the majority of arbitrators differ in nationality from the disputing parties unless otherwise agreed.",
+      "summary": "The majority of arbitrators must be nationals of States other than the disputing State and the investor’s State, unless appointed by party agreement.",
       "raw_scope": "tribunal independence",
       "parameter_tag": "tribunal_independence"
     },
@@ -22,33 +95,169 @@
       "ref": "Convention Article 41",
       "title": "Competence of the Tribunal",
       "mandatory": true,
-      "summary": "Empowers the tribunal to determine its own jurisdiction and decide jurisdictional objections.",
+      "summary": "The Tribunal has Kompetenz-Kompetenz and decides objections to its jurisdiction or competence, either preliminarily or with the merits.",
       "raw_scope": "jurisdictional authority",
       "parameter_tag": "jurisdiction_handling"
     },
     {
-      "ref": "Convention Article 44",
-      "title": "Applicable Procedure",
+      "ref": "Convention Article 42",
+      "title": "Applicable Law",
       "mandatory": true,
-      "summary": "Establishes the procedural hierarchy: Convention, Arbitration Rules, and party agreement, with limited tribunal discretion.",
-      "raw_scope": "procedural hierarchy and discretion limits",
+      "summary": "Tribunal applies the law agreed by the parties, or failing agreement, the host State’s law and applicable international law. No non liquet allowed.",
+      "raw_scope": "governing law",
+      "parameter_tag": "applicable_law"
+    },
+    {
+      "ref": "Convention Article 43",
+      "title": "Evidence and Site Visits",
+      "mandatory": false,
+      "summary": "Tribunal may call for documents, evidence, and conduct site visits or inquiries as necessary.",
+      "raw_scope": "evidence gathering",
+      "parameter_tag": "evidence_powers"
+    },
+    {
+      "ref": "Convention Article 44",
+      "title": "Procedure",
+      "mandatory": true,
+      "summary": "Proceedings follow the Convention and applicable Arbitration Rules unless otherwise agreed by the parties. Tribunal resolves procedural gaps.",
+      "raw_scope": "procedural hierarchy",
       "parameter_tag": "procedural_discretion"
     },
     {
-      "ref": "Convention Articles 48–49",
-      "title": "Award and Supplementation",
+      "ref": "Convention Article 45",
+      "title": "Failure to Appear",
       "mandatory": true,
-      "summary": "Governs decision-making, form of awards, and correction or supplementation of omitted issues.",
-      "raw_scope": "decision integrity",
+      "summary": "Non-appearance does not constitute admission. Tribunal may proceed after notice and grace period.",
+      "raw_scope": "default proceedings",
+      "parameter_tag": "failure_to_appear"
+    },
+    {
+      "ref": "Convention Article 46",
+      "title": "Incidental and Additional Claims",
+      "mandatory": false,
+      "summary": "Tribunal may decide incidental, additional, or counterclaims arising directly from the dispute if within consent and jurisdiction.",
+      "raw_scope": "claims expansion",
+      "parameter_tag": "ancillary_claims"
+    },
+    {
+      "ref": "Convention Article 47",
+      "title": "Provisional Measures",
+      "mandatory": false,
+      "summary": "Tribunal may recommend provisional measures to preserve the rights of either party.",
+      "raw_scope": "interim relief",
+      "parameter_tag": "provisional_measures"
+    },
+    {
+      "ref": "Convention Article 48",
+      "title": "The Award",
+      "mandatory": true,
+      "summary": "Award must be in writing, reasoned, decided by majority, and signed. Dissenting opinions permitted. Publication requires party consent.",
+      "raw_scope": "award requirements",
       "parameter_tag": "award_structure"
     },
     {
-      "ref": "Convention Article 52(1)(d)",
-      "title": "Annulment – Fundamental Rule of Procedure",
+      "ref": "Convention Article 49",
+      "title": "Dispatch and Rectification of Award",
       "mandatory": true,
-      "summary": "Provides annulment where there is a serious departure from a fundamental rule of procedure.",
-      "raw_scope": "annulment safeguard",
-      "parameter_tag": "fundamental_procedure_breach"
+      "summary": "Certified copies dispatched by the Secretary-General. Tribunal may rectify errors or decide omitted questions within 45 days.",
+      "raw_scope": "award finalization",
+      "parameter_tag": "award_dispatch"
+    },
+    {
+      "ref": "Convention Article 50",
+      "title": "Interpretation of the Award",
+      "mandatory": true,
+      "summary": "Either party may seek interpretation of an award. Enforcement may be stayed pending interpretation.",
+      "raw_scope": "post-award remedy",
+      "parameter_tag": "interpretation"
+    },
+    {
+      "ref": "Convention Article 51",
+      "title": "Revision of the Award",
+      "mandatory": true,
+      "summary": "Revision allowed for discovery of decisive new facts within strict temporal limits.",
+      "raw_scope": "post-award remedy",
+      "parameter_tag": "revision"
+    },
+    {
+      "ref": "Convention Article 52",
+      "title": "Annulment of the Award",
+      "mandatory": true,
+      "summary": "Annulment available on five exhaustive grounds via an ad hoc Committee appointed by the Chairman.",
+      "raw_scope": "post-award remedy",
+      "parameter_tag": "annulment"
+    },
+    {
+      "ref": "Convention Article 53",
+      "title": "Binding Force of Award",
+      "mandatory": true,
+      "summary": "Awards are binding and not subject to appeal, save for Convention remedies.",
+      "raw_scope": "award enforceability",
+      "parameter_tag": "binding_award"
+    },
+    {
+      "ref": "Convention Article 54",
+      "title": "Recognition and Enforcement",
+      "mandatory": true,
+      "summary": "Contracting States must recognize and enforce awards as final domestic judgments.",
+      "raw_scope": "enforcement obligation",
+      "parameter_tag": "enforcement"
+    },
+    {
+      "ref": "Convention Article 55",
+      "title": "Immunity from Execution",
+      "mandatory": true,
+      "summary": "State immunity from execution under domestic law is preserved.",
+      "raw_scope": "sovereign immunity preservation",
+      "parameter_tag": "execution_immunity"
+    },
+    {
+      "ref": "Convention Article 56",
+      "title": "Replacement of Arbitrators",
+      "mandatory": true,
+      "summary": "Tribunal composition remains stable; vacancies are filled per Convention rules.",
+      "raw_scope": "tribunal continuity",
+      "parameter_tag": "arbitrator_replacement"
+    },
+    {
+      "ref": "Convention Article 57",
+      "title": "Disqualification of Arbitrators",
+      "mandatory": true,
+      "summary": "Arbitrators may be challenged for manifest lack of required qualities.",
+      "raw_scope": "arbitrator challenges",
+      "parameter_tag": "disqualification"
+    },
+    {
+      "ref": "Convention Article 58",
+      "title": "Decision on Disqualification",
+      "mandatory": true,
+      "summary": "Disqualification decided by remaining members or the Chairman if necessary.",
+      "raw_scope": "challenge procedure",
+      "parameter_tag": "disqualification_decision"
+    },
+    {
+      "ref": "Convention Article 61",
+      "title": "Allocation of Costs in Arbitration",
+      "mandatory": true,
+      "summary": "Tribunal determines allocation of arbitration costs unless parties agree otherwise.",
+      "raw_scope": "costs determination",
+      "parameter_tag": "costs_allocation"
+    },
+    {
+      "ref": "Convention Article 62",
+      "title": "Place of Proceedings",
+      "mandatory": true,
+      "summary": "Proceedings held at the Centre’s seat unless otherwise provided.",
+      "raw_scope": "default venue",
+      "parameter_tag": "proceedings_place"
+    },
+    {
+      "ref": "Convention Article 63",
+      "title": "Alternative Venues",
+      "mandatory": false,
+      "summary": "Proceedings may be held at PCA or other approved locations by agreement.",
+      "raw_scope": "venue flexibility",
+      "parameter_tag": "alternative_venues"
     }
   ]
 }
