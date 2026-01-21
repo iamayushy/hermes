@@ -49,33 +49,36 @@ async function processAnalysis(
 
         await updateProgress(caseId, 40, "AI is analyzing document...");
 
-        for await (const chunk of stream) {
-            if (chunk.type === "content_block_delta" && chunk.delta?.type === "text_delta") {
-                fullRecommendations += chunk.delta.text;
+        await updateProgress(caseId, 40, "AI is analyzing document...");
+
+        let toolInput = "";
+
+        for await (const event of stream) {
+            if (event.type === 'content_block_start') {
+                // Check if this is the tool use block we expect
+                if (event.content_block.type === 'tool_use' && event.content_block.name === 'submit_analysis_report') {
+                    // Start of our tool call
+                }
+            } else if (event.type === 'content_block_delta') {
+                if (event.delta.type === 'input_json_delta') {
+                    toolInput += event.delta.partial_json;
+                }
             }
         }
 
         await updateProgress(caseId, 80, "Saving results...");
 
-        let cleanedData = fullRecommendations.trim()
-            .replace(/^```json\s*/i, '')
-            .replace(/^```\s*/i, '')
-            .replace(/\s*```$/i, '')
-            .trim();
-
-        if (!cleanedData.startsWith('{')) {
-            const jsonStart = cleanedData.indexOf('{');
-            const jsonEnd = cleanedData.lastIndexOf('}');
-            if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
-                cleanedData = cleanedData.substring(jsonStart, jsonEnd + 1);
-            }
-        }
-
         let parsedRecommendations;
         try {
-            parsedRecommendations = JSON.parse(cleanedData);
-        } catch {
-            parsedRecommendations = { raw_response: fullRecommendations.substring(0, 10000) };
+            parsedRecommendations = JSON.parse(toolInput);
+        } catch (e) {
+            console.error("Failed to parse tool input JSON:", e);
+            // Fallback - though with tool use this should be rare unless tokens cut off
+            parsedRecommendations = {
+                error: "analysis_failed",
+                message: "AI response was incomplete.",
+                raw_partial: toolInput.substring(0, 1000)
+            };
         }
 
         if (analysisMode === "with_parameters") {

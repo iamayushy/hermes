@@ -78,6 +78,28 @@ export function ParameterizedDisplay({ data }: { data: string }) {
                 </Card>
             );
         }
+
+        // Check for non-ICSID warning
+        if (parsed && typeof parsed === 'object' && 'warning' in parsed && (parsed as any).warning === 'non_icsid_document') {
+            return (
+                <Card className="border-amber-500/50 bg-amber-500/5">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-amber-600 dark:text-amber-500">
+                            <AlertTriangle className="h-5 w-5" />
+                            Non-ICSID Document Detected
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-foreground font-medium mb-2">
+                            {(parsed as any).message || "This document appears to be from a non-ICSID proceeding."}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                            Analysis has been halted because Procedo is specifically calibrated for ICSID rules and investment treaty arbitration. Recommendations generated for other arbitral rules (e.g., ICC, LCIA) may be inaccurate or misleading.
+                        </p>
+                    </CardContent>
+                </Card>
+            );
+        }
     } catch (e) {
         // Loading state
         const loadingMessages = [

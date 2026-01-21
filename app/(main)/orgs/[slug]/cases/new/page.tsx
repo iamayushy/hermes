@@ -18,23 +18,8 @@ export default async function NewCasePage({
     }
 
     return (
-        <div className="min-h-screen bg-background p-4 md:p-6">
-            <div className="max-w-7xl mx-auto space-y-6">
-                <div>
-                    <Link
-                        href={`/orgs/${slug}`}
-                        className="inline-flex items-center text-sm text-muted-foreground hover:text-primary transition-colors mb-4"
-                    >
-                        <ChevronLeft className="h-4 w-4 mr-1" /> Back to Dashboard
-                    </Link>
-                    <h1 className="text-3xl font-bold tracking-tight">Case Analysis</h1>
-                    <p className="text-muted-foreground">
-                        Upload your case document to receive AI-powered procedural recommendations
-                    </p>
-                </div>
-
-                <CaseAnalyzer />
-            </div>
+        <div className="h-[calc(100vh-4rem)] bg-background">
+            <CaseAnalyzer />
         </div>
     );
 }

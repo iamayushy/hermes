@@ -100,13 +100,13 @@ export function DashboardView({
     if (!isLoaded || !userId) return null;
 
     return (
-        <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950">
+        <main className="min-h-screen bg-linear-to-br from-slate-50 via-white to-blue-50/30 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950">
             <div className="max-w-7xl mx-auto px-4 md:px-6 py-8">
 
                 {/* Header */}
                 <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-8">
                     <div>
-                        <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">
+                        <h1 className="text-3xl font-bold tracking-tight bg-linear-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">
                             {organizationName || "Procedo"} Dashboard
                         </h1>
                         <p className="text-muted-foreground mt-1">
@@ -188,7 +188,7 @@ export function DashboardView({
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
                     {/* Primary Action Card */}
-                    <Card className="lg:col-span-2 bg-gradient-to-br from-primary/5 via-primary/10 to-blue-500/5 border-primary/20 hover:border-primary/40 transition-colors overflow-hidden relative">
+                    <Card className="lg:col-span-2 bg-linear-to-br from-primary/5 via-primary/10 to-blue-500/5 border-primary/20 hover:border-primary/40 transition-colors overflow-hidden relative">
                         <div className="absolute -right-8 -top-8 w-32 h-32 bg-primary/10 rounded-full blur-2xl" />
                         <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-blue-500/10 rounded-full blur-xl" />
                         <CardHeader className="relative z-10">

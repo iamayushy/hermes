@@ -4,8 +4,10 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { UploadCloud, Loader2, AlertCircle, FileText, Scale, Settings2, CheckCircle } from "lucide-react";
+import { UploadCloud, Loader2, AlertCircle, FileText, Scale, Settings2, CheckCircle, ChevronLeft } from "lucide-react";
 import { useAuth } from "@clerk/nextjs";
+import Link from "next/link";
+import { useParams } from "next/navigation";
 import { RecommendationDisplay } from "./recommendation-display";
 import { ParameterizedDisplay } from "./parameterized-display";
 import { DownloadPdfButton } from "./download-pdf-button";
@@ -24,6 +26,7 @@ interface AnalysisStatus {
 
 export function CaseAnalyzer() {
     const { orgId } = useAuth();
+    const params = useParams();
     const [file, setFile] = useState<File | null>(null);
     const [isStarting, setIsStarting] = useState(false);
     const [activeTab, setActiveTab] = useState<"default" | "with_parameters">("default");
@@ -179,232 +182,245 @@ export function CaseAnalyzer() {
     const paramData = paramStatus?.parameterizedRecommendations;
 
     return (
-        <div className="flex flex-col md:flex-row gap-6 h-[calc(100vh-12rem)]">
-            {/* Left Panel - Document Upload */}
-            <div className="w-full md:w-2/5 flex flex-col">
-                <Card className="flex-1 flex flex-col">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <FileText className="h-5 w-5 text-primary" />
-                            Document Upload
-                        </CardTitle>
-                        <CardDescription>Upload a case document for AI analysis</CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex-1 flex flex-col gap-4">
-                        {/* Upload Zone */}
-                        <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 flex flex-col items-center justify-center text-center hover:bg-muted/50 transition-colors relative min-h-[200px]">
-                            <input
-                                type="file"
-                                accept=".pdf"
-                                onChange={handleFileChange}
-                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                disabled={isProcessing || isStarting}
-                            />
-                            <UploadCloud className="h-10 w-10 text-muted-foreground mb-4" />
-                            {file ? (
-                                <>
-                                    <p className="text-sm font-medium text-foreground">{file.name}</p>
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                        {(file.size / 1024 / 1024).toFixed(2)} MB
-                                    </p>
-                                </>
-                            ) : (
-                                <>
-                                    <p className="text-sm font-medium">Click to upload case document</p>
-                                    <p className="text-xs text-muted-foreground mt-1">PDF • Max 10MB</p>
-                                </>
-                            )}
-                        </div>
+        <div className="flex flex-col lg:flex-row h-[calc(100vh-4rem)] bg-background">
+            {/* Left Panel - Sidebar Upload & Status */}
+            <div className="w-full lg:w-80 shrink-0 flex flex-col border-r bg-muted/30 p-4 lg:p-6 gap-4 overflow-y-auto">
+                <Link
+                    href={`/orgs/${params.slug}`}
+                    className="flex items-center text-xs text-muted-foreground hover:text-primary transition-colors px-1"
+                >
+                    <ChevronLeft className="h-3 w-3 mr-1" />
+                    Back to Dashboard
+                </Link>
 
-                        {/* Analyze Button */}
-                        {file && !isProcessing && !defaultComplete && !paramComplete && (
-                            <Button
-                                onClick={handleAnalyzeBoth}
-                                className="w-full"
-                                size="lg"
-                                disabled={isStarting}
-                            >
-                                {isStarting ? (
-                                    <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Starting...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Scale className="mr-2 h-4 w-4" />
-                                        Analyze Document
-                                    </>
-                                )}
-                            </Button>
-                        )}
+                <div className="flex items-center gap-2 px-1">
+                    <div className="p-2 bg-primary/10 rounded-lg">
+                        <FileText className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                        <h2 className="font-semibold text-sm">Case Document</h2>
+                        <p className="text-xs text-muted-foreground">Upload & Status</p>
+                    </div>
+                </div>
 
-                        {/* Re-analyze Button */}
-                        {file && (defaultComplete || paramComplete) && !isProcessing && (
-                            <Button
-                                onClick={handleAnalyzeBoth}
-                                className="w-full"
-                                size="lg"
-                                variant="outline"
-                                disabled={isStarting}
-                            >
+                {/* Upload Zone */}
+                <div className="border-2 border-dashed border-muted-foreground/20 rounded-xl p-6 flex flex-col items-center justify-center text-center hover:bg-muted/50 transition-colors relative bg-card/50">
+                    <input
+                        type="file"
+                        accept=".pdf"
+                        onChange={handleFileChange}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        disabled={isProcessing || isStarting}
+                    />
+                    <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center mb-3">
+                        <UploadCloud className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    {file ? (
+                        <>
+                            <p className="text-sm font-medium text-foreground truncate max-w-full px-2">{file.name}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                {(file.size / 1024 / 1024).toFixed(2)} MB
+                            </p>
+                        </>
+                    ) : (
+                        <>
+                            <p className="text-sm font-medium">Click to upload</p>
+                            <p className="text-xs text-muted-foreground mt-1">PDF • Max 10MB</p>
+                        </>
+                    )}
+                </div>
+
+                {/* Main Action Button */}
+                {file && !isProcessing && !defaultComplete && !paramComplete && (
+                    <Button
+                        onClick={handleAnalyzeBoth}
+                        className="w-full shadow-sm"
+                        size="lg"
+                        disabled={isStarting}
+                    >
+                        {isStarting ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Starting...
+                            </>
+                        ) : (
+                            <>
                                 <Scale className="mr-2 h-4 w-4" />
-                                Re-analyze Document
-                            </Button>
+                                Start Analysis
+                            </>
                         )}
+                    </Button>
+                )}
 
-                        {/* Progress Indicators */}
-                        {(isProcessing || defaultStatus || paramStatus) && (
-                            <div className="space-y-4 py-4">
-                                {/* Default Analysis Progress */}
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between text-sm">
-                                        <div className="flex items-center gap-2">
-                                            <FileText className="h-4 w-4" />
-                                            <span>Default Analysis</span>
-                                        </div>
-                                        {defaultComplete ? (
-                                            <CheckCircle className="h-4 w-4 text-green-600" />
-                                        ) : defaultStatus?.status === 'error' ? (
-                                            <AlertCircle className="h-4 w-4 text-red-600" />
-                                        ) : (
-                                            <span className="text-xs text-muted-foreground">
-                                                {defaultStatus?.currentStep || 'Waiting...'}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <Progress value={defaultStatus?.analysisProgress || 0} className="h-2" />
-                                </div>
+                {/* Re-analyze Button */}
+                {file && (defaultComplete || paramComplete) && !isProcessing && (
+                    <Button
+                        onClick={handleAnalyzeBoth}
+                        className="w-full"
+                        size="sm"
+                        variant="ghost"
+                        disabled={isStarting}
+                    >
+                        <Scale className="mr-2 h-4 w-4" />
+                        Start New Analysis
+                    </Button>
+                )}
 
-                                {/* Parameterized Analysis Progress */}
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between text-sm">
-                                        <div className="flex items-center gap-2">
-                                            <Settings2 className="h-4 w-4" />
-                                            <span>Parameterized Analysis</span>
-                                        </div>
-                                        {paramComplete ? (
-                                            <CheckCircle className="h-4 w-4 text-green-600" />
-                                        ) : paramStatus?.status === 'error' ? (
-                                            <AlertCircle className="h-4 w-4 text-red-600" />
-                                        ) : (
-                                            <span className="text-xs text-muted-foreground">
-                                                {paramStatus?.currentStep || 'Waiting...'}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <Progress value={paramStatus?.analysisProgress || 0} className="h-2" />
-                                </div>
+                {/* Progress & Status List */}
+                {(isProcessing || defaultStatus || paramStatus) && (
+                    <div className="flex-1 space-y-4">
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between text-sm">
+                                <span className="font-medium text-muted-foreground">Analysis Status</span>
+                                {(defaultComplete && paramComplete) && (
+                                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full dark:bg-green-900/30 dark:text-green-400">Completed</span>
+                                )}
                             </div>
-                        )}
 
-                        {error && (
-                            <div className="flex items-center gap-2 text-red-600 bg-red-50 dark:bg-red-900/10 p-3 rounded">
-                                <AlertCircle className="h-4 w-4 shrink-0" />
-                                <span className="text-sm">{error}</span>
+                            {/* Default Analysis Item */}
+                            <div className="bg-card rounded-lg p-3 border shadow-sm">
+                                <div className="flex items-center justify-between text-sm mb-2">
+                                    <div className="flex items-center gap-2">
+                                        <div className={`h-2 w-2 rounded-full ${defaultComplete ? 'bg-green-500' : 'bg-blue-500 animate-pulse'}`} />
+                                        <span className="font-medium">Default Analysis</span>
+                                    </div>
+                                    {defaultComplete && <CheckCircle className="h-4 w-4 text-green-500" />}
+                                </div>
+                                <Progress value={defaultComplete ? 100 : (defaultStatus?.analysisProgress || 0)} className="h-1.5" />
+                                <p className="text-xs text-muted-foreground mt-2 truncate">
+                                    {defaultComplete ? 'Analysis complete' : (defaultStatus?.currentStep || 'Waiting...')}
+                                </p>
                             </div>
-                        )}
-                    </CardContent>
-                </Card>
+
+                            {/* Parameterized Analysis Item */}
+                            <div className="bg-card rounded-lg p-3 border shadow-sm">
+                                <div className="flex items-center justify-between text-sm mb-2">
+                                    <div className="flex items-center gap-2">
+                                        <div className={`h-2 w-2 rounded-full ${paramComplete ? 'bg-green-500' : 'bg-purple-500 animate-pulse'}`} />
+                                        <span className="font-medium">Parameterized</span>
+                                    </div>
+                                    {paramComplete && <CheckCircle className="h-4 w-4 text-green-500" />}
+                                </div>
+                                <Progress value={paramComplete ? 100 : (paramStatus?.analysisProgress || 0)} className="h-1.5" />
+                                <p className="text-xs text-muted-foreground mt-2 truncate">
+                                    {paramComplete ? 'Analysis complete' : (paramStatus?.currentStep || 'Waiting...')}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {error && (
+                    <div className="mt-auto bg-red-50 dark:bg-red-900/10 p-3 rounded-lg border border-red-100 dark:border-red-900/20">
+                        <div className="flex items-start gap-2">
+                            <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+                            <p className="text-xs text-red-600 font-medium">{error}</p>
+                        </div>
+                    </div>
+                )}
             </div>
 
-            {/* Right Panel - Results */}
-            <div className="w-full md:w-3/5 flex flex-col">
-                <Card className="flex-1 flex flex-col max-h-[calc(100vh-12rem)]">
-                    <CardHeader className="shrink-0">
-                        <CardTitle className="flex items-center gap-2">
-                            <Scale className="h-5 w-5 text-primary" />
-                            AI Recommendations
-                        </CardTitle>
-                        <CardDescription>
-                            Procedural guidance based on ICSID rules
-                        </CardDescription>
+            {/* Right Panel - Main Content Area */}
+            <div className="flex-1 flex flex-col min-w-0 bg-background">
+                {/* Header / Actions Bar */}
+                <div className="h-16 shrink-0 border-b flex items-center justify-between px-6 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
+                    <div className="flex items-center gap-2">
+                        <Scale className="h-5 w-5 text-primary" />
+                        <h2 className="font-semibold text-lg">Analysis Results</h2>
+                    </div>
 
-                        {/* Tab Buttons */}
-                        {(!!defaultData || !!paramData) && (
-                            <div className="flex gap-2 mt-4">
-                                <Button
-                                    variant={activeTab === "default" ? "default" : "outline"}
-                                    size="sm"
+                    {(defaultComplete || paramComplete) && (
+                        <div className="flex items-center gap-3">
+                            {/* View Toggles */}
+                            <div className="flex bg-muted p-1 rounded-lg">
+                                <button
                                     onClick={() => setActiveTab("default")}
                                     disabled={!defaultData}
-                                    className="flex-1"
+                                    className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === "default"
+                                        ? "bg-background text-foreground shadow-sm"
+                                        : "text-muted-foreground hover:text-foreground opacity-70 hover:opacity-100"
+                                        }`}
                                 >
-                                    <FileText className="mr-2 h-4 w-4" />
-                                    Default
-                                    {!defaultComplete && defaultStatus?.status === 'processing' && (
-                                        <Loader2 className="ml-2 h-3 w-3 animate-spin" />
-                                    )}
-                                </Button>
-                                <Button
-                                    variant={activeTab === "with_parameters" ? "default" : "outline"}
-                                    size="sm"
+                                    Default View
+                                </button>
+                                <button
                                     onClick={() => setActiveTab("with_parameters")}
                                     disabled={!paramData}
-                                    className="flex-1"
+                                    className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === "with_parameters"
+                                        ? "bg-background text-foreground shadow-sm"
+                                        : "text-muted-foreground hover:text-foreground opacity-70 hover:opacity-100"
+                                        }`}
                                 >
-                                    <Settings2 className="mr-2 h-4 w-4" />
                                     Parameterized
-                                    {!paramComplete && paramStatus?.status === 'processing' && (
-                                        <Loader2 className="ml-2 h-3 w-3 animate-spin" />
-                                    )}
-                                </Button>
+                                </button>
                             </div>
-                        )}
 
-                        {/* Download Buttons */}
-                        {(!!defaultData || !!paramData) && (
-                            <div className="flex flex-wrap gap-2 mt-3">
-                                {!!defaultData && (
-                                    <DownloadPdfButton
-                                        report={{
-                                            title: file?.name?.replace('.pdf', '') || "Case Analysis",
-                                            type: "default",
-                                            data: defaultData
-                                        }}
-                                    />
-                                )}
-                                {!!paramData && (
-                                    <DownloadPdfButton
-                                        report={{
-                                            title: file?.name?.replace('.pdf', '') || "Case Analysis",
-                                            type: "parameterized",
-                                            data: paramData
-                                        }}
-                                    />
-                                )}
-                            </div>
-                        )}
-                    </CardHeader>
-                    <CardContent className="flex-1 overflow-y-auto min-h-0">
+                            <div className="h-4 w-px bg-border mx-1" />
+
+                            {/* Downloads */}
+                            {activeTab === "default" && !!defaultStatus?.defaultRecommendations && (
+                                <DownloadPdfButton
+                                    report={{
+                                        title: file?.name?.replace('.pdf', '') || "Case Analysis",
+                                        type: "default",
+                                        data: defaultStatus.defaultRecommendations as any
+                                    }}
+                                />
+                            )}
+                            {activeTab === "with_parameters" && !!paramStatus?.parameterizedRecommendations && (
+                                <DownloadPdfButton
+                                    report={{
+                                        title: file?.name?.replace('.pdf', '') || "Case Analysis",
+                                        type: "parameterized",
+                                        data: paramStatus.parameterizedRecommendations as any
+                                    }}
+                                />
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                {/* Content Area */}
+                <div className="flex-1 overflow-y-auto p-6 md:p-8 xl:p-10 scroll-smooth">
+                    <div id="analysis-results-container" className="max-w-5xl mx-auto">
                         {!defaultData && !paramData && !isProcessing && (
-                            <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
-                                <FileText className="h-16 w-16 mb-4 opacity-20" />
-                                <p className="text-sm">Upload a document to start analysis</p>
-                                <p className="text-xs mt-2">
-                                    Both analyses run in background - no timeout issues
+                            <div className="flex flex-col items-center justify-center h-[60vh] text-center">
+                                <div className="h-20 w-20 bg-muted/50 rounded-full flex items-center justify-center mb-6">
+                                    <Scale className="h-10 w-10 text-muted-foreground/50" />
+                                </div>
+                                <h3 className="text-xl font-semibold text-foreground mb-2">Ready to Analyze</h3>
+                                <p className="text-muted-foreground max-w-sm">
+                                    Upload a procedural order, memorial, or award in the sidebar to generate comprehensive AI recommendations.
                                 </p>
                             </div>
                         )}
 
                         {isProcessing && !defaultData && !paramData && (
-                            <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
-                                <Loader2 className="h-12 w-12 mb-4 animate-spin opacity-40" />
-                                <p className="text-sm">Processing your document...</p>
-                                <p className="text-xs mt-2">
-                                    This may take 1-2 minutes
+                            <div className="flex flex-col items-center justify-center h-[60vh] text-center">
+                                <div className="h-16 w-16 relative mb-6">
+                                    <div className="absolute inset-0 border-4 border-muted rounded-full"></div>
+                                    <div className="absolute inset-0 border-4 border-primary rounded-full border-t-transparent animate-spin"></div>
+                                </div>
+                                <h3 className="text-xl font-semibold text-foreground mb-2">Processing Document</h3>
+                                <p className="text-muted-foreground">
+                                    Our AI is analyzing the document against ICSID rules...
                                 </p>
                             </div>
                         )}
 
                         {activeTab === "default" && !!defaultData && (
-                            <RecommendationDisplay data={JSON.stringify(defaultData)} />
+                            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                <RecommendationDisplay data={JSON.stringify(defaultData)} />
+                            </div>
                         )}
 
                         {activeTab === "with_parameters" && !!paramData && (
-                            <ParameterizedDisplay data={JSON.stringify(paramData)} />
+                            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                <ParameterizedDisplay data={JSON.stringify(paramData)} />
+                            </div>
                         )}
-                    </CardContent>
-                </Card>
+                    </div>
+                </div>
             </div>
         </div>
     );

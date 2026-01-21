@@ -2,11 +2,30 @@
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, AlertTriangle, Info, Calendar, Scale, FileText, Globe, Loader2 } from "lucide-react";
+import { CheckCircle2, AlertTriangle, Info, Calendar, Scale, FileText, Globe, Loader2, Lightbulb, ListChecks, ArrowRight } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+
+interface ProcedoRecommendation {
+    title: string;
+    recommendation: string;
+    rationale: string;
+    priority: string;
+    rule_reference: string;
+}
+
+interface ChecklistItem {
+    item: string;
+    status: string;
+    deadline_guidance: string;
+}
 
 interface Recommendation {
     case_summary?: string;
+    document_type?: string;
+    procedo_recommends?: {
+        primary_recommendations?: ProcedoRecommendation[];
+        procedural_checklist?: ChecklistItem[];
+    };
     recommendations?: {
         language?: {
             recommendation: string;
@@ -56,6 +75,7 @@ interface Recommendation {
             severity: string;
             rule_ref: string;
             annulment_risk?: boolean;
+            immediate_action?: string;
         }>;
     };
 }
@@ -91,6 +111,28 @@ export function RecommendationDisplay({ data }: { data: string }) {
                         </p>
                         <p className="text-sm text-muted-foreground mt-2">
                             Please upload an arbitration-related document such as a procedural order, memorial, or submission.
+                        </p>
+                    </CardContent>
+                </Card>
+            );
+        }
+
+        // Check for non-ICSID warning
+        if (parsed && typeof parsed === 'object' && 'warning' in parsed && (parsed as any).warning === 'non_icsid_document') {
+            return (
+                <Card className="border-amber-500/50 bg-amber-500/5">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-amber-600 dark:text-amber-500">
+                            <AlertTriangle className="h-5 w-5" />
+                            Non-ICSID Document Detected
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-foreground font-medium mb-2">
+                            {(parsed as any).message || "This document appears to be from a non-ICSID proceeding."}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                            Analysis has been halted because Procedo is specifically calibrated for ICSID rules and investment treaty arbitration. Recommendations generated for other arbitral rules (e.g., ICC, LCIA) may be inaccurate or misleading.
                         </p>
                     </CardContent>
                 </Card>
@@ -147,21 +189,106 @@ export function RecommendationDisplay({ data }: { data: string }) {
         );
     }
 
-    const { case_summary, recommendations } = parsed;
+    const { case_summary, recommendations, procedo_recommends, document_type } = parsed;
 
     return (
         <div className="space-y-6">
-            {/* Case Summary */}
+            {/* Case Summary with Document Type */}
             {case_summary && (
-                <Card className="border-primary/20">
+                <Card className="border-primary/20 bg-linear-to-r from-primary/5 to-transparent">
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <FileText className="h-5 w-5 text-primary" />
-                            Case Summary
-                        </CardTitle>
+                        <div className="flex items-center justify-between">
+                            <CardTitle className="flex items-center gap-2">
+                                <FileText className="h-5 w-5 text-primary" />
+                                Case Summary
+                            </CardTitle>
+                            {document_type && (
+                                <Badge variant="outline" className="text-xs">
+                                    {document_type}
+                                </Badge>
+                            )}
+                        </div>
                     </CardHeader>
                     <CardContent>
                         <p className="text-base leading-relaxed text-foreground">{case_summary}</p>
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* PROCEDO RECOMMENDS - Primary Section */}
+            {procedo_recommends?.primary_recommendations && procedo_recommends.primary_recommendations.length > 0 && (
+                <Card className="border-2 border-primary/30 bg-linear-to-br from-primary/10 via-primary/5 to-transparent shadow-lg">
+                    <CardHeader className="pb-3">
+                        <CardTitle className="flex items-center gap-2 text-xl text-primary">
+                            <Lightbulb className="h-6 w-6" />
+                            Procedo Recommends
+                        </CardTitle>
+                        <CardDescription>
+                            Key procedural recommendations based on ICSID rules and case analysis
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {procedo_recommends.primary_recommendations.map((rec, i) => (
+                            <div key={i} className="bg-background p-4 rounded-lg border border-primary/20 shadow-sm">
+                                <div className="flex items-start justify-between mb-2">
+                                    <div className="flex items-center gap-2">
+                                        <ArrowRight className="h-4 w-4 text-primary shrink-0" />
+                                        <h4 className="font-semibold text-foreground">{rec.title}</h4>
+                                    </div>
+                                    <Badge
+                                        variant={rec.priority === 'high' ? 'destructive' : rec.priority === 'medium' ? 'default' : 'secondary'}
+                                        className="text-xs capitalize"
+                                    >
+                                        {rec.priority} priority
+                                    </Badge>
+                                </div>
+                                <p className="text-sm text-foreground mb-2 pl-6">{rec.recommendation}</p>
+                                <p className="text-xs text-muted-foreground pl-6 mb-2">{rec.rationale}</p>
+                                <div className="pl-6">
+                                    <Badge variant="outline" className="text-xs">
+                                        {rec.rule_reference}
+                                    </Badge>
+                                </div>
+                            </div>
+                        ))}
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* Procedural Checklist */}
+            {procedo_recommends?.procedural_checklist && procedo_recommends.procedural_checklist.length > 0 && (
+                <Card className="border-green-200 dark:border-green-900 bg-green-50/50 dark:bg-green-950/20">
+                    <CardHeader className="pb-3">
+                        <CardTitle className="flex items-center gap-2 text-green-700 dark:text-green-400">
+                            <ListChecks className="h-5 w-5" />
+                            Procedural Checklist
+                        </CardTitle>
+                        <CardDescription>
+                            Action items to address in this proceeding
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-2">
+                            {procedo_recommends.procedural_checklist.map((item, i) => (
+                                <div key={i} className="flex items-start gap-3 p-3 bg-background rounded-lg border border-green-200 dark:border-green-900">
+                                    <div className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${item.status === 'required' ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300' :
+                                        item.status === 'recommended' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300' :
+                                            'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
+                                        }`}>
+                                        {i + 1}
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="text-sm font-medium text-foreground">{item.item}</span>
+                                            <Badge variant="outline" className="text-xs capitalize">
+                                                {item.status}
+                                            </Badge>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">{item.deadline_guidance}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </CardContent>
                 </Card>
             )}
