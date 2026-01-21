@@ -388,8 +388,8 @@ export async function generateRecommendations(caseContext: CaseContext) {
 
   // 3. Call Claude with streaming
   const stream = anthropic.messages.stream({
-    model: "claude-opus-4-5-20251101", // Updated to Sonnet 3.5 which is better at tools
-    max_tokens: 18000,
+    model: "claude-sonnet-4-5",
+    max_tokens: 8000,
     system: system,
     messages: [{ role: "user", content: userMessage }],
   });
