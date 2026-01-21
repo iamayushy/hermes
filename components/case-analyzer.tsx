@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { UploadCloud, Loader2, AlertCircle, FileText, Scale, Settings2, CheckCircle } from "lucide-react";
-import { upload } from "@vercel/blob/client";
 import { useAuth } from "@clerk/nextjs";
 import { RecommendationDisplay } from "./recommendation-display";
 import { ParameterizedDisplay } from "./parameterized-display";
@@ -100,56 +99,6 @@ export function CaseAnalyzer() {
         return () => clearInterval(interval);
     }, [paramJobId, paramStatus?.status, pollStatus]);
 
-    const startAnalysis = async (mode: "default" | "with_parameters", existingCaseId?: string, fileUrl?: string, fileName?: string, fileSize?: number) => {
-        if (!orgId) return null;
-
-        // If no file URL provided (initial run), we must have a file to upload
-        if (!fileUrl && !file && !existingCaseId) return null;
-
-        let finalFileUrl = fileUrl;
-        let finalFileName = fileName;
-        let finalFileSize = fileSize;
-
-        // Upload file if we have a file but no URL yet
-        if (file && !finalFileUrl && !existingCaseId) {
-            try {
-                const newBlob = await upload(file.name, file, {
-                    access: 'public',
-                    handleUploadUrl: '/api/upload',
-                });
-                finalFileUrl = newBlob.url;
-                finalFileName = file.name;
-                finalFileSize = file.size;
-            } catch (err) {
-                throw new Error("File upload failed: " + (err instanceof Error ? err.message : String(err)));
-            }
-        }
-
-        const body = {
-            analysisMode: mode,
-            caseId: existingCaseId,
-            fileUrl: finalFileUrl,
-            fileName: finalFileName,
-            fileSize: finalFileSize
-        };
-
-        const response = await fetch("/api/analyze-case", {
-            method: "POST",
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(body),
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || "Analysis failed");
-        }
-
-        const result = await response.json();
-        return result.caseId;
-    };
-
     const handleAnalyzeBoth = async () => {
         if (!file || !orgId) return;
 
@@ -159,45 +108,55 @@ export function CaseAnalyzer() {
         setParamStatus(null);
 
         try {
-            // Upload first if needed to get the URL
-            let fileUrl: string | undefined;
-            if (file) {
-                // We'll let the first startAnalysis call handle the upload if needed
-                // But optimally we should upload once here if we are doing two calls
-                const newBlob = await upload(`cases/${orgId}/${file.name}`, file, {
-                    access: 'public',
-                    handleUploadUrl: '/api/upload',
-                });
-                fileUrl = newBlob.url;
+            // Step 1: Upload file directly to Vercel Blob (bypasses 4.5MB limit)
+            const { upload } = await import("@vercel/blob/client");
+            const timestamp = Date.now();
+            const blob = await upload(`cases/${orgId}/${timestamp}-${file.name}`, file, {
+                access: 'public',
+                handleUploadUrl: '/api/upload',
+            });
+
+            // Step 2: Call combined analysis API with file URL
+            const response = await fetch("/api/analyze-case", {
+                method: "POST",
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    fileUrl: blob.url,
+                    fileName: file.name,
+                    fileSize: file.size,
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || "Analysis failed");
             }
 
-            const caseId = await startAnalysis("default", undefined, fileUrl, file?.name, file?.size);
+            const result = await response.json();
+            const caseId = result.caseId;
+
+            // Set initial status for both analyses
             setDefaultJobId(caseId);
+            setParamJobId(caseId);
             setDefaultStatus({
                 id: caseId,
                 status: 'processing',
                 analysisProgress: 5,
-                currentStep: 'Starting...',
+                currentStep: 'Starting combined analysis...',
+                defaultRecommendations: null,
+                parameterizedRecommendations: null,
+                errorMessage: null
+            });
+            setParamStatus({
+                id: caseId,
+                status: 'processing',
+                analysisProgress: 5,
+                currentStep: 'Waiting...',
                 defaultRecommendations: null,
                 parameterizedRecommendations: null,
                 errorMessage: null
             });
 
-            if (caseId) {
-                await new Promise(resolve => setTimeout(resolve, 500));
-                // Pass existing caseId, no need to re-upload or pass file details again
-                await startAnalysis("with_parameters", caseId);
-                setParamJobId(caseId);
-                setParamStatus({
-                    id: caseId,
-                    status: 'processing',
-                    analysisProgress: 5,
-                    currentStep: 'Queued...',
-                    defaultRecommendations: null,
-                    parameterizedRecommendations: null,
-                    errorMessage: null
-                });
-            }
         } catch (err) {
             let errorMessage = String(err);
             if (errorMessage.startsWith("Error: ")) {

@@ -5,7 +5,7 @@ import { generateRecommendations } from "@/lib/recommendation-engine";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/db";
 import { cases } from "@/db/schema/cases";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { after } from "next/server";
 
 export const runtime = "nodejs";
@@ -119,80 +119,67 @@ export async function POST(req: NextRequest) {
             return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
         }
 
+        // Accept JSON body with fileUrl from client-side upload
         const body = await req.json();
-        const { analysisMode, caseId: existingCaseId, fileUrl, fileName, fileSize } = body;
-        const caseTitle = fileName ? fileName.replace('.pdf', '') : "Case Analysis";
+        const { fileUrl, fileName, fileSize } = body;
 
-        let caseId: string;
-        let finalFileUrl = fileUrl;
-
-        if (existingCaseId) {
-            const [existingCase] = await db
-                .select({ id: cases.id, fileUrl: cases.fileUrl })
-                .from(cases)
-                .where(and(eq(cases.id, existingCaseId), eq(cases.orgId, orgId)));
-
-            if (!existingCase) {
-                return new Response(JSON.stringify({ error: "Case not found" }), { status: 404 });
-            }
-            caseId = existingCase.id;
-            finalFileUrl = existingCase.fileUrl; // Use stored URL for existing cases
-
-            await db.update(cases)
-                .set({
-                    status: 'processing',
-                    analysisProgress: 5,
-                    currentStep: "Preparing analysis..."
-                })
-                .where(eq(cases.id, caseId));
-        } else {
-            if (!fileUrl) {
-                return new Response(JSON.stringify({ error: "No file URL provided" }), { status: 400 });
-            }
-
-            const [newCase] = await db.insert(cases).values({
-                orgId,
-                userId,
-                caseTitle,
-                fileName: fileName || "document.pdf",
-                fileSize: fileSize || 0,
-                fileUrl: fileUrl,
-                status: 'processing',
-                analysisProgress: 5,
-                currentStep: "Preparing analysis...",
-            }).returning();
-
-            caseId = newCase.id;
+        if (!fileUrl) {
+            return new Response(JSON.stringify({ error: "No file URL provided" }), { status: 400 });
         }
 
-        await updateProgress(caseId, 10, "Extracting text from PDF...");
+        // Create case record
+        const [newCase] = await db.insert(cases).values({
+            orgId,
+            userId,
+            caseTitle: fileName?.replace('.pdf', '') || "Case Analysis",
+            fileName: fileName || "document.pdf",
+            fileSize: fileSize || 0,
+            fileUrl: fileUrl,
+            status: 'processing',
+            analysisProgress: 5,
+            currentStep: "Starting analysis...",
+        }).returning();
 
-        let text: string;
-        try {
-            text = await extractPDFText(finalFileUrl);
-        } catch (error) {
-            console.error("Text extraction failed:", error);
-            await db.update(cases)
-                .set({
+        const caseId = newCase.id;
+
+        // Run all processing in background to return quickly
+        after(async () => {
+            try {
+                // Extract text
+                await updateProgress(caseId, 10, "Extracting text from PDF...");
+                let text: string;
+                try {
+                    text = await extractPDFText(fileUrl);
+                } catch (error) {
+                    console.error("Text extraction failed:", error);
+                    await db.update(cases).set({
+                        status: 'error',
+                        errorMessage: "Failed to extract text from PDF.",
+                        analysisProgress: 0,
+                        currentStep: "Error"
+                    }).where(eq(cases.id, caseId));
+                    return;
+                }
+
+                // Run default analysis first
+                await updateProgress(caseId, 20, "Running default analysis...");
+                await processAnalysis(caseId, text, "default", orgId);
+
+                // Run parameterized analysis second (sequential, not parallel)
+                await updateProgress(caseId, 60, "Running parameterized analysis...");
+                await processAnalysis(caseId, text, "with_parameters", orgId);
+
+                await updateProgress(caseId, 100, "Complete");
+
+            } catch (err) {
+                console.error("Background processing error:", err);
+                await db.update(cases).set({
                     status: 'error',
-                    errorMessage: "Failed to extract text from PDF. The file may be encrypted or corrupted.",
+                    errorMessage: "Unexpected error during analysis.",
                     analysisProgress: 0,
                     currentStep: "Error"
-                })
-                .where(eq(cases.id, caseId));
-
-            return new Response(
-                JSON.stringify({
-                    caseId,
-                    status: 'error',
-                    error: "Failed to extract text from PDF"
-                }),
-                { status: 200 }
-            );
-        }
-
-        after(async () => {
-            await processAnalysis(caseId, text, analysisMode as "default" | "with_parameters" || "default", orgId);
+                }).where(eq(cases.id, caseId));
+            }
         });
 
         return new Response(
@@ -203,10 +190,7 @@ export async function POST(req: NextRequest) {
             }),
             {
                 status: 200,
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-Case-Id": caseId,
-                },
+                headers: { "Content-Type": "application/json" },
             }
         );
 
