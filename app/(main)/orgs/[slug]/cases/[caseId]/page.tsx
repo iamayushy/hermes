@@ -135,6 +135,8 @@ export default async function CaseDetailPage({
                 {/* Tabbed Analysis View */}
                 {caseItem.status !== "error" && (
                     <CaseAnalysisTabs
+                        caseId={caseItem.id}
+                        initialStatus={caseItem.status}
                         caseTitle={caseItem.caseTitle}
                         defaultRecommendations={caseItem.defaultRecommendations}
                         parameterizedRecommendations={caseItem.parameterizedRecommendations}

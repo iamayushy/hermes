@@ -22,8 +22,12 @@ export const cases = pgTable("cases", {
     fileSize: integer("file_size").notNull(),
     fileUrl: text("file_url").notNull(), // Vercel Blob URL
 
-    // Analysis Status
-    status: text("status").notNull(), // 'pending' | 'analyzed' | 'error'
+    // Analysis Status: 'pending' | 'processing' | 'analyzed' | 'error'
+    status: text("status").notNull(),
+
+    // Progress tracking for background jobs
+    analysisProgress: integer("analysis_progress").default(0), // 0-100
+    currentStep: text("current_step"), // e.g., "Extracting text...", "Running AI analysis..."
 
     // AI Recommendations - Both Types
     defaultRecommendations: jsonb("default_recommendations"),

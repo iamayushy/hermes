@@ -43,14 +43,14 @@ interface ParameterizedRecommendation {
         severity: string;
         rule_ref: string;
         annulment_risk?: boolean;
+        action_required?: string;
         immediate_action?: string;
     }>;
+    raw_response?: string;
 }
 
 export function ParameterizedDisplay({ data }: { data: string }) {
     let parsed: ParameterizedRecommendation;
-
-    // Clean up the data
     let cleanedData = data.trim();
     cleanedData = cleanedData.replace(/^```json\s*/i, '');
     cleanedData = cleanedData.replace(/^```\s*/i, '');
@@ -109,8 +109,8 @@ export function ParameterizedDisplay({ data }: { data: string }) {
                                 <div
                                     key={idx}
                                     className={`flex items-center gap-2 p-3 rounded-lg transition-all ${idx <= progressIndex
-                                            ? 'bg-primary/10 text-foreground'
-                                            : 'bg-muted/30 text-muted-foreground'
+                                        ? 'bg-primary/10 text-foreground'
+                                        : 'bg-muted/30 text-muted-foreground'
                                         }`}
                                 >
                                     {idx < progressIndex ? (
@@ -146,6 +146,28 @@ export function ParameterizedDisplay({ data }: { data: string }) {
             default: return <Info className="h-4 w-4 text-muted-foreground" />;
         }
     };
+
+    if (parsed.raw_response) {
+        return (
+            <Card className="border-orange-200 bg-orange-50/50 dark:border-orange-900 dark:bg-orange-950/20">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-orange-700 dark:text-orange-400">
+                        <AlertTriangle className="h-5 w-5" />
+                        Analysis Formatting Issue
+                    </CardTitle>
+                    <CardDescription>
+                        The AI analysis completed but the response was not in the expected format.
+                        Below is the raw output.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="bg-background p-4 rounded-md overflow-auto max-h-[500px] text-xs font-mono whitespace-pre-wrap border">
+                        {parsed.raw_response}
+                    </div>
+                </CardContent>
+            </Card>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -277,10 +299,10 @@ export function ParameterizedDisplay({ data }: { data: string }) {
                                     <Badge
                                         variant="secondary"
                                         className={`text-xs ${opt.potential_impact === 'high'
-                                                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                                                : opt.potential_impact === 'medium'
-                                                    ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                                                    : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
+                                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                            : opt.potential_impact === 'medium'
+                                                ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                                                : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
                                             }`}
                                     >
                                         {opt.potential_impact} impact
@@ -325,8 +347,8 @@ export function ParameterizedDisplay({ data }: { data: string }) {
                                     <Badge
                                         variant="secondary"
                                         className={`text-xs ${suggestion.potential_impact === 'high'
-                                                ? 'bg-green-100 text-green-800'
-                                                : 'bg-yellow-100 text-yellow-800'
+                                            ? 'bg-green-100 text-green-800'
+                                            : 'bg-yellow-100 text-yellow-800'
                                             }`}
                                     >
                                         {suggestion.potential_impact}

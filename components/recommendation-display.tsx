@@ -97,7 +97,6 @@ export function RecommendationDisplay({ data }: { data: string }) {
             );
         }
     } catch (e) {
-        // If not valid JSON yet, show progressive loading messages
         const loadingMessages = [
             "📄 Extracting document content...",
             "🔍 Analyzing case context...",
@@ -107,7 +106,6 @@ export function RecommendationDisplay({ data }: { data: string }) {
             "✨ Finalizing analysis..."
         ];
 
-        // Cycle through messages based on data length (rough progress indicator)
         const progressIndex = Math.min(
             Math.floor(cleanedData.length / 100),
             loadingMessages.length - 1
@@ -399,10 +397,10 @@ export function RecommendationDisplay({ data }: { data: string }) {
                                     <Badge
                                         variant="secondary"
                                         className={`text-xs ${suggestion.potential_impact === 'high'
-                                                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                                                : suggestion.potential_impact === 'medium'
-                                                    ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                                                    : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
+                                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                            : suggestion.potential_impact === 'medium'
+                                                ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                                                : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
                                             }`}
                                     >
                                         {suggestion.potential_impact} impact

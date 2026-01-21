@@ -1,112 +1,162 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { UploadCloud, Loader2, AlertCircle, FileText, Scale, Settings2, Download } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { UploadCloud, Loader2, AlertCircle, FileText, Scale, Settings2, CheckCircle } from "lucide-react";
 import { useAuth } from "@clerk/nextjs";
 import { RecommendationDisplay } from "./recommendation-display";
 import { ParameterizedDisplay } from "./parameterized-display";
 import { DownloadPdfButton } from "./download-pdf-button";
 
+interface AnalysisStatus {
+    id: string;
+    status: string;
+    analysisProgress: number | null;
+    currentStep: string | null;
+    defaultRecommendations: unknown | null;
+    parameterizedRecommendations: unknown | null;
+    errorMessage: string | null;
+    analyzedAt?: string | null;
+    parameterizedAnalyzedAt?: string | null;
+}
+
 export function CaseAnalyzer() {
     const { orgId } = useAuth();
     const [file, setFile] = useState<File | null>(null);
-    const [analyzingDefault, setAnalyzingDefault] = useState(false);
-    const [analyzingParameterized, setAnalyzingParameterized] = useState(false);
+    const [isStarting, setIsStarting] = useState(false);
     const [activeTab, setActiveTab] = useState<"default" | "with_parameters">("default");
-    const [defaultRecommendations, setDefaultRecommendations] = useState<string>("");
-    const [parameterizedRecommendations, setParameterizedRecommendations] = useState<string>("");
-    const [error, setError] = useState<string>("");
 
-    const isAnalyzing = analyzingDefault || analyzingParameterized;
+    // Analysis state management
+    const [defaultJobId, setDefaultJobId] = useState<string | null>(null);
+    const [paramJobId, setParamJobId] = useState<string | null>(null);
+    const [defaultStatus, setDefaultStatus] = useState<AnalysisStatus | null>(null);
+    const [paramStatus, setParamStatus] = useState<AnalysisStatus | null>(null);
+
+    const [error, setError] = useState<string>("");
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const selectedFile = e.target.files?.[0];
         if (selectedFile) {
-            const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+            const MAX_SIZE = 10 * 1024 * 1024;
             if (selectedFile.size > MAX_SIZE) {
                 setError("File too large. Max 10MB.");
                 return;
             }
             setFile(selectedFile);
             setError("");
-            setDefaultRecommendations("");
-            setParameterizedRecommendations("");
+            setDefaultJobId(null);
+            setParamJobId(null);
+            setDefaultStatus(null);
+            setParamStatus(null);
         }
     };
 
-    const runAnalysis = async (
-        mode: "default" | "with_parameters",
-        fileToAnalyze: File,
-        caseId?: string
-    ): Promise<string | undefined> => {
-        const setAnalyzing = mode === "default" ? setAnalyzingDefault : setAnalyzingParameterized;
-        const setRecommendations = mode === "default" ? setDefaultRecommendations : setParameterizedRecommendations;
-
+    const pollStatus = useCallback(async (caseId: string): Promise<AnalysisStatus | null> => {
         try {
-            setAnalyzing(true);
-            const formData = new FormData();
-            formData.append("file", fileToAnalyze);
-            formData.append("analysisMode", mode);
-            if (caseId) {
-                formData.append("caseId", caseId);
-            }
-
-            const response = await fetch("/api/analyze-case", {
-                method: "POST",
-                body: formData,
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || "Analysis failed");
-            }
-
-            // Get case ID from response header
-            const returnedCaseId = response.headers.get("X-Case-Id");
-
-            // Stream the response
-            const reader = response.body?.getReader();
-            if (!reader) throw new Error("No response body");
-
-            const decoder = new TextDecoder();
-            let accumulated = "";
-
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-
-                const chunk = decoder.decode(value);
-                accumulated += chunk;
-                setRecommendations(accumulated);
-            }
-
-            return returnedCaseId || undefined;
-        } finally {
-            setAnalyzing(false);
+            const res = await fetch(`/api/cases/${caseId}/status`);
+            if (!res.ok) return null;
+            return await res.json();
+        } catch {
+            return null;
         }
+    }, []);
+
+    useEffect(() => {
+        if (!defaultJobId || defaultStatus?.defaultRecommendations || defaultStatus?.status === 'error') {
+            return;
+        }
+
+        const interval = setInterval(async () => {
+            const status = await pollStatus(defaultJobId);
+            if (status) {
+                setDefaultStatus(status);
+                if (status.defaultRecommendations || status.status === 'error') {
+                    clearInterval(interval);
+                }
+            }
+        }, 2000);
+
+        return () => clearInterval(interval);
+    }, [defaultJobId, defaultStatus?.status, pollStatus]);
+
+    useEffect(() => {
+        if (!paramJobId || paramStatus?.parameterizedRecommendations || paramStatus?.status === 'error') {
+            return;
+        }
+
+        const interval = setInterval(async () => {
+            const status = await pollStatus(paramJobId);
+            if (status) {
+                setParamStatus(status);
+                if (status.parameterizedRecommendations || status.status === 'error') {
+                    clearInterval(interval);
+                }
+            }
+        }, 2000);
+
+        return () => clearInterval(interval);
+    }, [paramJobId, paramStatus?.status, pollStatus]);
+
+    const startAnalysis = async (mode: "default" | "with_parameters", existingCaseId?: string) => {
+        if (!file || !orgId) return null;
+
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("analysisMode", mode);
+        if (existingCaseId) {
+            formData.append("caseId", existingCaseId);
+        }
+
+        const response = await fetch("/api/analyze-case", {
+            method: "POST",
+            body: formData,
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || "Analysis failed");
+        }
+
+        const result = await response.json();
+        return result.caseId;
     };
 
-    // Run BOTH analyses - sequentially so second uses same case ID
     const handleAnalyzeBoth = async () => {
         if (!file || !orgId) return;
 
+        setIsStarting(true);
         setError("");
-        setDefaultRecommendations("");
-        setParameterizedRecommendations("");
-        setActiveTab("default");
+        setDefaultStatus(null);
+        setParamStatus(null);
 
         try {
-            // Run default analysis first to get case ID
-            const caseId = await runAnalysis("default", file);
+            const caseId = await startAnalysis("default");
+            setDefaultJobId(caseId);
+            setDefaultStatus({
+                id: caseId,
+                status: 'processing',
+                analysisProgress: 5,
+                currentStep: 'Starting...',
+                defaultRecommendations: null,
+                parameterizedRecommendations: null,
+                errorMessage: null
+            });
 
-            // Run parameterized analysis using same case ID
             if (caseId) {
-                await runAnalysis("with_parameters", file, caseId);
-            } else {
-                // Fallback: run separately if no caseId returned
-                await runAnalysis("with_parameters", file);
+                await new Promise(resolve => setTimeout(resolve, 500));
+                await startAnalysis("with_parameters", caseId);
+                setParamJobId(caseId);
+                setParamStatus({
+                    id: caseId,
+                    status: 'processing',
+                    analysisProgress: 5,
+                    currentStep: 'Queued...',
+                    defaultRecommendations: null,
+                    parameterizedRecommendations: null,
+                    errorMessage: null
+                });
             }
         } catch (err) {
             let errorMessage = String(err);
@@ -114,26 +164,20 @@ export function CaseAnalyzer() {
                 errorMessage = errorMessage.substring(7);
             }
             setError(errorMessage);
+        } finally {
+            setIsStarting(false);
         }
     };
 
-    // Parse recommendations for download
-    const parseRecommendations = (data: string) => {
-        try {
-            let cleanedData = data.trim()
-                .replace(/^```json\s*/i, '')
-                .replace(/^```\s*/i, '')
-                .replace(/\s*```$/i, '')
-                .trim();
-            return JSON.parse(cleanedData);
-        } catch {
-            return null;
-        }
-    };
+    const defaultComplete = !!defaultStatus?.defaultRecommendations;
+    const paramComplete = !!paramStatus?.parameterizedRecommendations;
 
-    const currentRecommendations = activeTab === "default"
-        ? defaultRecommendations
-        : parameterizedRecommendations;
+    const isProcessing =
+        (!!defaultJobId && !defaultComplete && defaultStatus?.status !== 'error') ||
+        (!!paramJobId && !paramComplete && paramStatus?.status !== 'error');
+
+    const defaultData = defaultStatus?.defaultRecommendations;
+    const paramData = paramStatus?.parameterizedRecommendations;
 
     return (
         <div className="flex flex-col md:flex-row gap-6 h-[calc(100vh-12rem)]">
@@ -155,7 +199,7 @@ export function CaseAnalyzer() {
                                 accept=".pdf"
                                 onChange={handleFileChange}
                                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                disabled={isAnalyzing}
+                                disabled={isProcessing || isStarting}
                             />
                             <UploadCloud className="h-10 w-10 text-muted-foreground mb-4" />
                             {file ? (
@@ -173,57 +217,83 @@ export function CaseAnalyzer() {
                             )}
                         </div>
 
-                        {/* Single Analyze Button - Runs Both */}
-                        {file && !isAnalyzing && !defaultRecommendations && !parameterizedRecommendations && (
+                        {/* Analyze Button */}
+                        {file && !isProcessing && !defaultComplete && !paramComplete && (
                             <Button
                                 onClick={handleAnalyzeBoth}
                                 className="w-full"
                                 size="lg"
+                                disabled={isStarting}
                             >
-                                <Scale className="mr-2 h-4 w-4" />
-                                Analyze Document (Both Modes)
+                                {isStarting ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Starting...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Scale className="mr-2 h-4 w-4" />
+                                        Analyze Document
+                                    </>
+                                )}
                             </Button>
                         )}
 
                         {/* Re-analyze Button */}
-                        {file && !isAnalyzing && (defaultRecommendations || parameterizedRecommendations) && (
+                        {file && (defaultComplete || paramComplete) && !isProcessing && (
                             <Button
                                 onClick={handleAnalyzeBoth}
                                 className="w-full"
                                 size="lg"
                                 variant="outline"
+                                disabled={isStarting}
                             >
                                 <Scale className="mr-2 h-4 w-4" />
                                 Re-analyze Document
                             </Button>
                         )}
 
-                        {/* Analysis Progress */}
-                        {isAnalyzing && (
-                            <div className="space-y-3 py-4">
-                                <div className={`flex items-center gap-2 p-3 rounded-lg ${analyzingDefault ? 'bg-primary/10' : defaultRecommendations ? 'bg-green-50 dark:bg-green-950' : 'bg-muted/50'}`}>
-                                    {analyzingDefault ? (
-                                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                                    ) : defaultRecommendations ? (
-                                        <FileText className="h-4 w-4 text-green-600" />
-                                    ) : (
-                                        <FileText className="h-4 w-4 text-muted-foreground" />
-                                    )}
-                                    <span className="text-sm">
-                                        Default Analysis {analyzingDefault ? "(Running...)" : defaultRecommendations ? "✓ Complete" : "(Pending)"}
-                                    </span>
+                        {/* Progress Indicators */}
+                        {(isProcessing || defaultStatus || paramStatus) && (
+                            <div className="space-y-4 py-4">
+                                {/* Default Analysis Progress */}
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between text-sm">
+                                        <div className="flex items-center gap-2">
+                                            <FileText className="h-4 w-4" />
+                                            <span>Default Analysis</span>
+                                        </div>
+                                        {defaultComplete ? (
+                                            <CheckCircle className="h-4 w-4 text-green-600" />
+                                        ) : defaultStatus?.status === 'error' ? (
+                                            <AlertCircle className="h-4 w-4 text-red-600" />
+                                        ) : (
+                                            <span className="text-xs text-muted-foreground">
+                                                {defaultStatus?.currentStep || 'Waiting...'}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <Progress value={defaultStatus?.analysisProgress || 0} className="h-2" />
                                 </div>
-                                <div className={`flex items-center gap-2 p-3 rounded-lg ${analyzingParameterized ? 'bg-primary/10' : parameterizedRecommendations ? 'bg-green-50 dark:bg-green-950' : 'bg-muted/50'}`}>
-                                    {analyzingParameterized ? (
-                                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                                    ) : parameterizedRecommendations ? (
-                                        <Settings2 className="h-4 w-4 text-green-600" />
-                                    ) : (
-                                        <Settings2 className="h-4 w-4 text-muted-foreground" />
-                                    )}
-                                    <span className="text-sm">
-                                        Parameterized Analysis {analyzingParameterized ? "(Running...)" : parameterizedRecommendations ? "✓ Complete" : "(Pending)"}
-                                    </span>
+
+                                {/* Parameterized Analysis Progress */}
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between text-sm">
+                                        <div className="flex items-center gap-2">
+                                            <Settings2 className="h-4 w-4" />
+                                            <span>Parameterized Analysis</span>
+                                        </div>
+                                        {paramComplete ? (
+                                            <CheckCircle className="h-4 w-4 text-green-600" />
+                                        ) : paramStatus?.status === 'error' ? (
+                                            <AlertCircle className="h-4 w-4 text-red-600" />
+                                        ) : (
+                                            <span className="text-xs text-muted-foreground">
+                                                {paramStatus?.currentStep || 'Waiting...'}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <Progress value={paramStatus?.analysisProgress || 0} className="h-2" />
                                 </div>
                             </div>
                         )}
@@ -234,22 +304,11 @@ export function CaseAnalyzer() {
                                 <span className="text-sm">{error}</span>
                             </div>
                         )}
-
-                        {/* Document Info */}
-                        {file && (
-                            <div className="mt-auto pt-4 border-t">
-                                <h4 className="text-xs font-medium text-muted-foreground mb-2">Analysis Status</h4>
-                                <div className="space-y-1 text-xs text-muted-foreground">
-                                    <p>• Default: {defaultRecommendations ? "✓ Complete" : analyzingDefault ? "Running..." : "Not run"}</p>
-                                    <p>• Parameterized: {parameterizedRecommendations ? "✓ Complete" : analyzingParameterized ? "Running..." : "Not run"}</p>
-                                </div>
-                            </div>
-                        )}
                     </CardContent>
                 </Card>
             </div>
 
-            {/* Right Panel - Recommendations with Tabs */}
+            {/* Right Panel - Results */}
             <div className="w-full md:w-3/5 flex flex-col">
                 <Card className="flex-1 flex flex-col max-h-[calc(100vh-12rem)]">
                     <CardHeader className="shrink-0">
@@ -258,55 +317,59 @@ export function CaseAnalyzer() {
                             AI Recommendations
                         </CardTitle>
                         <CardDescription>
-                            Procedural guidance based on ICSID rules and historical precedents
+                            Procedural guidance based on ICSID rules
                         </CardDescription>
 
                         {/* Tab Buttons */}
-                        {(defaultRecommendations || parameterizedRecommendations) && (
+                        {(!!defaultData || !!paramData) && (
                             <div className="flex gap-2 mt-4">
                                 <Button
                                     variant={activeTab === "default" ? "default" : "outline"}
                                     size="sm"
                                     onClick={() => setActiveTab("default")}
-                                    disabled={!defaultRecommendations && !analyzingDefault}
+                                    disabled={!defaultData}
                                     className="flex-1"
                                 >
                                     <FileText className="mr-2 h-4 w-4" />
-                                    Default Analysis
-                                    {analyzingDefault && <Loader2 className="ml-2 h-3 w-3 animate-spin" />}
+                                    Default
+                                    {!defaultComplete && defaultStatus?.status === 'processing' && (
+                                        <Loader2 className="ml-2 h-3 w-3 animate-spin" />
+                                    )}
                                 </Button>
                                 <Button
                                     variant={activeTab === "with_parameters" ? "default" : "outline"}
                                     size="sm"
                                     onClick={() => setActiveTab("with_parameters")}
-                                    disabled={!parameterizedRecommendations && !analyzingParameterized}
+                                    disabled={!paramData}
                                     className="flex-1"
                                 >
                                     <Settings2 className="mr-2 h-4 w-4" />
-                                    With Parameters
-                                    {analyzingParameterized && <Loader2 className="ml-2 h-3 w-3 animate-spin" />}
+                                    Parameterized
+                                    {!paramComplete && paramStatus?.status === 'processing' && (
+                                        <Loader2 className="ml-2 h-3 w-3 animate-spin" />
+                                    )}
                                 </Button>
                             </div>
                         )}
 
                         {/* Download Buttons */}
-                        {(defaultRecommendations || parameterizedRecommendations) && (
+                        {(!!defaultData || !!paramData) && (
                             <div className="flex flex-wrap gap-2 mt-3">
-                                {defaultRecommendations && parseRecommendations(defaultRecommendations) && (
+                                {!!defaultData && (
                                     <DownloadPdfButton
                                         report={{
                                             title: file?.name?.replace('.pdf', '') || "Case Analysis",
                                             type: "default",
-                                            data: parseRecommendations(defaultRecommendations)
+                                            data: defaultData
                                         }}
                                     />
                                 )}
-                                {parameterizedRecommendations && parseRecommendations(parameterizedRecommendations) && (
+                                {!!paramData && (
                                     <DownloadPdfButton
                                         report={{
                                             title: file?.name?.replace('.pdf', '') || "Case Analysis",
                                             type: "parameterized",
-                                            data: parseRecommendations(parameterizedRecommendations)
+                                            data: paramData
                                         }}
                                     />
                                 )}
@@ -314,22 +377,32 @@ export function CaseAnalyzer() {
                         )}
                     </CardHeader>
                     <CardContent className="flex-1 overflow-y-auto min-h-0">
-                        {!currentRecommendations && !isAnalyzing && (
+                        {!defaultData && !paramData && !isProcessing && (
                             <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
                                 <FileText className="h-16 w-16 mb-4 opacity-20" />
-                                <p className="text-sm">Upload and analyze a document to see recommendations</p>
+                                <p className="text-sm">Upload a document to start analysis</p>
                                 <p className="text-xs mt-2">
-                                    Both Default and Parameterized analyses will run automatically
+                                    Both analyses run in background - no timeout issues
                                 </p>
                             </div>
                         )}
 
-                        {activeTab === "default" && defaultRecommendations && (
-                            <RecommendationDisplay data={defaultRecommendations} />
+                        {isProcessing && !defaultData && !paramData && (
+                            <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
+                                <Loader2 className="h-12 w-12 mb-4 animate-spin opacity-40" />
+                                <p className="text-sm">Processing your document...</p>
+                                <p className="text-xs mt-2">
+                                    This may take 1-2 minutes
+                                </p>
+                            </div>
                         )}
 
-                        {activeTab === "with_parameters" && parameterizedRecommendations && (
-                            <ParameterizedDisplay data={parameterizedRecommendations} />
+                        {activeTab === "default" && !!defaultData && (
+                            <RecommendationDisplay data={JSON.stringify(defaultData)} />
+                        )}
+
+                        {activeTab === "with_parameters" && !!paramData && (
+                            <ParameterizedDisplay data={JSON.stringify(paramData)} />
                         )}
                     </CardContent>
                 </Card>

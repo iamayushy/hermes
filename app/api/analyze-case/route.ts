@@ -7,9 +7,16 @@ import { put } from "@vercel/blob";
 import { db } from "@/db";
 import { cases } from "@/db/schema/cases";
 import { eq, and } from "drizzle-orm";
+import { after } from "next/server";
 
 export const runtime = "nodejs";
-export const maxDuration = 60; // 60 seconds for complex analysis
+export const maxDuration = 60; // Keep at 60s - we return quickly now
+
+async function updateProgress(caseId: string, progress: number, step: string) {
+    await db.update(cases)
+        .set({ analysisProgress: progress, currentStep: step })
+        .where(eq(cases.id, caseId));
+}
 
 async function extractPDFText(file: File): Promise<string> {
     const arrayBuffer = await file.arrayBuffer();
@@ -25,25 +32,100 @@ async function extractPDFText(file: File): Promise<string> {
     });
 }
 
+async function processAnalysis(
+    caseId: string,
+    text: string,
+    analysisMode: "default" | "with_parameters",
+    orgId: string
+) {
+    try {
+        await updateProgress(caseId, 20, "Starting AI analysis...");
+
+        const stream = await generateRecommendations({ text, orgId, analysisMode });
+        let fullRecommendations = "";
+
+        await updateProgress(caseId, 40, "AI is analyzing document...");
+
+        for await (const chunk of stream) {
+            if (chunk.type === "content_block_delta" && chunk.delta?.type === "text_delta") {
+                fullRecommendations += chunk.delta.text;
+            }
+        }
+
+        await updateProgress(caseId, 80, "Saving results...");
+
+        let cleanedData = fullRecommendations.trim()
+            .replace(/^```json\s*/i, '')
+            .replace(/^```\s*/i, '')
+            .replace(/\s*```$/i, '')
+            .trim();
+
+        if (!cleanedData.startsWith('{')) {
+            const jsonStart = cleanedData.indexOf('{');
+            const jsonEnd = cleanedData.lastIndexOf('}');
+            if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+                cleanedData = cleanedData.substring(jsonStart, jsonEnd + 1);
+            }
+        }
+
+        let parsedRecommendations;
+        try {
+            parsedRecommendations = JSON.parse(cleanedData);
+        } catch {
+            parsedRecommendations = { raw_response: fullRecommendations.substring(0, 10000) };
+        }
+
+        if (analysisMode === "with_parameters") {
+            await db.update(cases)
+                .set({
+                    status: 'analyzed',
+                    parameterizedRecommendations: parsedRecommendations,
+                    parameterizedAnalyzedAt: new Date(),
+                    analysisProgress: 100,
+                    currentStep: "Complete"
+                })
+                .where(eq(cases.id, caseId));
+        } else {
+            await db.update(cases)
+                .set({
+                    status: 'analyzed',
+                    defaultRecommendations: parsedRecommendations,
+                    analyzedAt: new Date(),
+                    analysisProgress: 100,
+                    currentStep: "Complete"
+                })
+                .where(eq(cases.id, caseId));
+        }
+    } catch (error) {
+        console.error("Background processing error:", error);
+        await db.update(cases)
+            .set({
+                status: 'error',
+                errorMessage: error instanceof Error ? error.message : "Analysis failed",
+                analysisProgress: 0,
+                currentStep: "Error occurred"
+            })
+            .where(eq(cases.id, caseId));
+    }
+}
+
 export async function POST(req: NextRequest) {
     try {
-        // 1. Authenticate and get org context
         const { userId, orgId } = await auth();
         if (!userId || !orgId) {
             return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
         }
 
-        // 2. Parse form data
         const formData = await req.formData();
         const file = formData.get("file") as File;
         const caseTitle = (formData.get("caseTitle") as string) || file.name.replace('.pdf', '');
         const existingCaseId = formData.get("caseId") as string | null;
+        const analysisMode = (formData.get("analysisMode") as "default" | "with_parameters") || "default";
 
         if (!file) {
             return new Response(JSON.stringify({ error: "No file provided" }), { status: 400 });
         }
 
-        // 3. File size validation (max 10MB)
         const MAX_FILE_SIZE = 10 * 1024 * 1024;
         if (file.size > MAX_FILE_SIZE) {
             return new Response(
@@ -52,11 +134,9 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        let caseRecord: { id: string };
+        let caseId: string;
 
-        // Check if we're updating an existing case or creating a new one
         if (existingCaseId) {
-            // Validate the case exists and belongs to this org
             const [existingCase] = await db
                 .select({ id: cases.id })
                 .from(cases)
@@ -65,14 +145,20 @@ export async function POST(req: NextRequest) {
             if (!existingCase) {
                 return new Response(JSON.stringify({ error: "Case not found" }), { status: 404 });
             }
-            caseRecord = existingCase;
+            caseId = existingCase.id;
+
+            await db.update(cases)
+                .set({
+                    status: 'processing',
+                    analysisProgress: 5,
+                    currentStep: "Preparing analysis..."
+                })
+                .where(eq(cases.id, caseId));
         } else {
-            // 4. Upload file to Vercel Blob (only for new cases)
             const blob = await put(`cases/${orgId}/${Date.now()}-${file.name}`, file, {
                 access: 'public',
             });
 
-            // 5. Create case record in database
             const [newCase] = await db.insert(cases).values({
                 orgId,
                 userId,
@@ -80,144 +166,62 @@ export async function POST(req: NextRequest) {
                 fileName: file.name,
                 fileSize: file.size,
                 fileUrl: blob.url,
-                status: 'pending',
+                status: 'processing',
+                analysisProgress: 5,
+                currentStep: "Preparing analysis...",
             }).returning();
 
-            caseRecord = newCase;
+            caseId = newCase.id;
         }
 
-        // 6. Extract text from PDF
+        await updateProgress(caseId, 10, "Extracting text from PDF...");
+
         let text: string;
         try {
             text = await extractPDFText(file);
-            if (!text || text.trim().length === 0) {
-                throw new Error("Could not extract text from PDF");
-            }
         } catch (error) {
-            const errorMessage = String(error);
-
-            // Update case with specific error message
-            let userFriendlyError = "Could not extract text from PDF";
-
-            if (errorMessage.includes("unsupported encryption")) {
-                userFriendlyError = "This PDF is encrypted or password-protected. Please upload an unencrypted version.";
-            } else if (errorMessage.includes("Invalid PDF")) {
-                userFriendlyError = "This file appears to be corrupted or is not a valid PDF.";
-            }
-
             await db.update(cases)
                 .set({
                     status: 'error',
-                    errorMessage: userFriendlyError
+                    errorMessage: "Failed to extract text from PDF. The file may be encrypted or corrupted.",
+                    analysisProgress: 0,
+                    currentStep: "Error"
                 })
-                .where(eq(cases.id, caseRecord.id));
+                .where(eq(cases.id, caseId));
 
-            return new Response(JSON.stringify({ error: userFriendlyError }), {
-                status: 400,
-            });
+            return new Response(
+                JSON.stringify({
+                    caseId,
+                    status: 'error',
+                    error: "Failed to extract text from PDF"
+                }),
+                { status: 200 }
+            );
         }
 
-        // 7. Generate recommendations (streaming)
-        const analysisMode = (formData.get("analysisMode") as string) || "default";
-        const stream = await generateRecommendations({
-            text,
-            orgId,
-            analysisMode: analysisMode as "default" | "with_parameters",
+        after(async () => {
+            await processAnalysis(caseId, text, analysisMode, orgId);
         });
 
-        // 8. Collect the full response to save to database
-        let fullRecommendations = "";
-        const encoder = new TextEncoder();
-        const readableStream = new ReadableStream({
-            async start(controller) {
-                try {
-                    for await (const chunk of stream) {
-                        if (chunk.type === "content_block_delta" && chunk.delta.type === "text_delta") {
-                            const text = chunk.delta.text;
-                            fullRecommendations += text;
-                            controller.enqueue(encoder.encode(text));
-                        }
-                    }
-
-                    // Save recommendations to database after streaming completes
-                    try {
-                        let cleanedData = fullRecommendations.trim()
-                            .replace(/^```json\s*/i, '')
-                            .replace(/^```\s*/i, '')
-                            .replace(/\s*```$/i, '')
-                            .trim();
-
-                        // Try to find JSON in the response if it starts with non-JSON content
-                        if (!cleanedData.startsWith('{')) {
-                            const jsonStart = cleanedData.indexOf('{');
-                            const jsonEnd = cleanedData.lastIndexOf('}');
-                            if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
-                                cleanedData = cleanedData.substring(jsonStart, jsonEnd + 1);
-                            }
-                        }
-
-                        const parsedRecommendations = JSON.parse(cleanedData);
-
-                        // Save to appropriate column based on analysis mode
-                        if (analysisMode === "with_parameters") {
-                            await db.update(cases)
-                                .set({
-                                    status: 'analyzed',
-                                    parameterizedRecommendations: parsedRecommendations,
-                                    parameterizedAnalyzedAt: new Date()
-                                })
-                                .where(eq(cases.id, caseRecord.id));
-                        } else {
-                            await db.update(cases)
-                                .set({
-                                    status: 'analyzed',
-                                    defaultRecommendations: parsedRecommendations,
-                                    analyzedAt: new Date()
-                                })
-                                .where(eq(cases.id, caseRecord.id));
-                        }
-                    } catch (e) {
-                        console.error("Failed to save recommendations:", e);
-                        // Still save raw text as fallback
-                        const fallbackData = { raw_response: fullRecommendations.substring(0, 10000) };
-                        if (analysisMode === "with_parameters") {
-                            await db.update(cases)
-                                .set({
-                                    status: 'analyzed',
-                                    parameterizedRecommendations: fallbackData,
-                                    parameterizedAnalyzedAt: new Date()
-                                })
-                                .where(eq(cases.id, caseRecord.id));
-                        } else {
-                            await db.update(cases)
-                                .set({
-                                    status: 'analyzed',
-                                    defaultRecommendations: fallbackData,
-                                    analyzedAt: new Date()
-                                })
-                                .where(eq(cases.id, caseRecord.id));
-                        }
-                    }
-
-                    controller.close();
-                } catch (error) {
-                    controller.error(error);
-                }
-            },
-        });
-
-        return new Response(readableStream, {
-            headers: {
-                "Content-Type": "text/event-stream",
-                "Cache-Control": "no-cache",
-                Connection: "keep-alive",
-                "X-Case-Id": caseRecord.id, // Send case ID in header
-            },
-        });
-    } catch (error) {
-        console.error("Error analyzing case:", error);
         return new Response(
-            JSON.stringify({ error: "Analysis failed", details: String(error) }),
+            JSON.stringify({
+                caseId,
+                status: 'processing',
+                message: "Analysis started. Poll /api/cases/[id]/status for updates."
+            }),
+            {
+                status: 200,
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-Case-Id": caseId,
+                },
+            }
+        );
+
+    } catch (error) {
+        console.error("API error:", error);
+        return new Response(
+            JSON.stringify({ error: error instanceof Error ? error.message : "Analysis failed" }),
             { status: 500 }
         );
     }
