@@ -14,13 +14,36 @@ import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { FileText, Gavel, Scale, Clock, CheckCircle2, ChevronRight, Settings, Loader2 } from "lucide-react";
+import {
+    FileText,
+    Scale,
+    Clock,
+    CheckCircle2,
+    ChevronRight,
+    Settings,
+    Loader2,
+    Plus,
+    FolderOpen,
+    BarChart3,
+    Shield,
+    ArrowRight,
+    TrendingUp,
+    Settings2
+} from "lucide-react";
 import { seedRules, checkRulesStatus } from "@/actions/seed-rules";
 import Link from "next/link";
 
+interface DashboardStats {
+    totalCases: number;
+    analyzedCases: number;
+    thisWeekCases: number;
+    parameterizedCases: number;
+}
+
 export function DashboardView({
     organizationName,
-    recentCases: propRecentCases
+    recentCases,
+    stats
 }: {
     organizationName?: string;
     recentCases?: Array<{
@@ -28,11 +51,13 @@ export function DashboardView({
         caseTitle: string;
         status: string;
         createdAt: Date;
+        defaultRecommendations?: unknown;
+        parameterizedRecommendations?: unknown;
     }>;
+    stats?: DashboardStats;
 }) {
     const { isLoaded, userId, orgId } = useAuth();
 
-    // Demo state for role switching
     const [role, setRole] = useState<"arbitrator" | "institution_admin">("arbitrator");
     const [hasRules, setHasRules] = useState<boolean>(false);
     const [isLoadingRules, setIsLoadingRules] = useState<boolean>(true);
@@ -45,7 +70,6 @@ export function DashboardView({
                 setIsLoadingRules(false);
             });
         } else {
-            // For demo without actual org context, we simulate 'false' or just finish loading
             setIsLoadingRules(false);
         }
     }, [orgId]);
@@ -65,182 +89,267 @@ export function DashboardView({
         }
     };
 
-    // Mock data
-    const mockCases = [
-        { id: "1", caseTitle: "Case ARB-2023-001", status: "analyzed", createdAt: new Date() },
-        { id: "2", caseTitle: "Case ARB-2023-004", status: "pending", createdAt: new Date() },
-        { id: "3", caseTitle: "Case ARB-2023-007", status: "analyzed", createdAt: new Date() },
-    ];
-    const recentCases = propRecentCases && propRecentCases.length > 0 ? propRecentCases : mockCases;
-    const arbitratorsCount = 12;
+    const cases = recentCases || [];
+    const dashboardStats = stats || {
+        totalCases: 0,
+        analyzedCases: 0,
+        thisWeekCases: 0,
+        parameterizedCases: 0
+    };
 
     if (!isLoaded || !userId) return null;
 
     return (
-        <main className="flex min-h-screen flex-col items-center py-10 px-4 bg-zinc-50/50 dark:bg-zinc-950/50 relative overflow-hidden">
+        <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950">
+            <div className="max-w-7xl mx-auto px-4 md:px-6 py-8">
 
-            {/* Ambient Background Elements */}
-            <div className="absolute top-0 left-0 w-full h-96 bg-linear-to-b from-primary/5 via-primary/0 to-transparent pointer-events-none" />
-
-            <div className="w-full max-w-5xl space-y-8 relative z-10">
-
-                {/* Header Section */}
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 animate-in fade-in slide-in-from-top-4 duration-700">
-                    <div className="space-y-1">
-                        <h1 className="text-3xl font-bold tracking-tight text-foreground">
-                            {organizationName ? `${organizationName} Workspace` : "Procedural Guidance Workspace"}
+                {/* Header */}
+                <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-8">
+                    <div>
+                        <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">
+                            {organizationName || "Procedo"} Dashboard
                         </h1>
-                        <p className="text-muted-foreground text-lg">
-                            Review arbitral procedure against institutional rules.
+                        <p className="text-muted-foreground mt-1">
+                            AI-powered procedural compliance for ICSID arbitration
                         </p>
                     </div>
-
-                    {/* Demo Role Switcher */}
-                    <div className="flex items-center gap-2 p-2 rounded-lg bg-card border shadow-sm">
+                    <div className="flex items-center gap-3 p-2 rounded-xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur border shadow-sm">
                         <Switch
                             id="role-mode"
                             checked={role === "institution_admin"}
                             onCheckedChange={(checked) => setRole(checked ? "institution_admin" : "arbitrator")}
                         />
-                        <Label htmlFor="role-mode" className="text-xs font-medium text-muted-foreground">
-                            {role === "arbitrator" ? "View as Arbitrator" : "View as Institution"}
+                        <Label htmlFor="role-mode" className="text-sm font-medium pr-2">
+                            {role === "arbitrator" ? "Arbitrator" : "Institution"}
                         </Label>
                     </div>
+                </header>
+
+                {/* Stats Grid */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                    <Card className="bg-white/60 dark:bg-zinc-900/60 backdrop-blur border-0 shadow-sm hover:shadow-md transition-shadow">
+                        <CardContent className="pt-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-muted-foreground">Total Cases</p>
+                                    <p className="text-3xl font-bold mt-1">{dashboardStats.totalCases}</p>
+                                </div>
+                                <div className="p-3 rounded-xl bg-muted">
+                                    <FolderOpen className="h-6 w-6 text-muted-foreground" />
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="bg-white/60 dark:bg-zinc-900/60 backdrop-blur border-0 shadow-sm hover:shadow-md transition-shadow">
+                        <CardContent className="pt-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-muted-foreground">Analyzed</p>
+                                    <p className="text-3xl font-bold mt-1">{dashboardStats.analyzedCases}</p>
+                                </div>
+                                <div className="p-3 rounded-xl bg-muted">
+                                    <CheckCircle2 className="h-6 w-6 text-muted-foreground" />
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="bg-white/60 dark:bg-zinc-900/60 backdrop-blur border-0 shadow-sm hover:shadow-md transition-shadow">
+                        <CardContent className="pt-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-muted-foreground">With Parameters</p>
+                                    <p className="text-3xl font-bold mt-1">{dashboardStats.parameterizedCases}</p>
+                                </div>
+                                <div className="p-3 rounded-xl bg-muted">
+                                    <Settings2 className="h-6 w-6 text-muted-foreground" />
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="bg-white/60 dark:bg-zinc-900/60 backdrop-blur border-0 shadow-sm hover:shadow-md transition-shadow">
+                        <CardContent className="pt-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-muted-foreground">This Week</p>
+                                    <p className="text-3xl font-bold mt-1">{dashboardStats.thisWeekCases}</p>
+                                </div>
+                                <div className="p-3 rounded-xl bg-muted">
+                                    <TrendingUp className="h-6 w-6 text-muted-foreground" />
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
                 </div>
 
-                {/* Primary Action Area */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
+                {/* Main Content */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-                    {/* Main Action Card */}
-                    <Card className="md:col-span-2 glass-panel border-primary/10 shadow-lg relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                            <Gavel className="w-48 h-48 text-primary" />
-                        </div>
-
-                        <CardHeader className="md:pb-10">
-                            <Badge variant="outline" className="w-fit mb-2 border-primary/20 text-primary bg-primary/5">
-                                {role === "arbitrator" ? "New Proceeding" : "Institution Control"}
+                    {/* Primary Action Card */}
+                    <Card className="lg:col-span-2 bg-gradient-to-br from-primary/5 via-primary/10 to-blue-500/5 border-primary/20 hover:border-primary/40 transition-colors overflow-hidden relative">
+                        <div className="absolute -right-8 -top-8 w-32 h-32 bg-primary/10 rounded-full blur-2xl" />
+                        <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-blue-500/10 rounded-full blur-xl" />
+                        <CardHeader className="relative z-10">
+                            <Badge variant="secondary" className="w-fit mb-3 bg-primary/10 text-primary border-0">
+                                {role === "arbitrator" ? "Quick Action" : "Administration"}
                             </Badge>
-                            <CardTitle className="text-3xl font-semibold text-gradient">
-                                {role === "arbitrator" ? "Start a New Case" : "Manage Institution"}
+                            <CardTitle className="text-2xl lg:text-3xl">
+                                {role === "arbitrator" ? "Analyze New Case" : "Institution Settings"}
                             </CardTitle>
-                            <CardDescription className="text-lg max-w-lg">
+                            <CardDescription className="text-base max-w-lg">
                                 {role === "arbitrator"
-                                    ? "Upload a procedural order to receive structured guidance based on institutional rules."
-                                    : "Configure institutional rules, manage arbitrator access, and review analytics."}
+                                    ? "Upload a procedural order to receive AI-powered compliance analysis with both default and parameterized review modes."
+                                    : "Configure ICSID rules, manage team access, and view organization-wide analytics."}
                             </CardDescription>
                         </CardHeader>
-                        <CardContent>
-                            <Button size="lg" className="shadow-2xl shadow-primary/20 hover:shadow-primary/40 transition-shadow" asChild>
+                        <CardContent className="relative z-10">
+                            <Button size="lg" className="shadow-lg hover:shadow-xl transition-shadow group" asChild>
                                 {role === "arbitrator" ? (
-                                    <a href={`/orgs/${organizationName || 'demo'}/cases/new`}>
-                                        <FileText className="mr-2 h-4 w-4" /> Create Case
-                                    </a>
+                                    <Link href={`/orgs/${organizationName || 'demo'}/cases/new`}>
+                                        <Plus className="mr-2 h-5 w-5" />
+                                        Start New Analysis
+                                        <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                                    </Link>
                                 ) : (
-                                    <a href={`/orgs/${organizationName || 'demo'}/settings/history`}>
-                                        <Settings className="mr-2 h-4 w-4" /> Global Settings
-                                    </a>
+                                    <Link href={`/orgs/${organizationName || 'demo'}/settings/history`}>
+                                        <Settings className="mr-2 h-5 w-5" />
+                                        Open Settings
+                                        <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                                    </Link>
                                 )}
                             </Button>
                         </CardContent>
                     </Card>
 
-                    {/* Stats / Quick Info */}
-                    <div className="space-y-6">
-                        {role === "arbitrator" && (
-                            <Card className="h-full bg-linear-to-br from-card to-secondary/30 border-secondary">
-                                <CardHeader>
-                                    <CardTitle className="text-lg flex items-center gap-2">
-                                        <Clock className="h-5 w-5 text-muted-foreground" />
-                                        Recent Cases
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    {recentCases.map((c, i) => (
+                    {/* Recent Cases */}
+                    <Card className="bg-white/60 dark:bg-zinc-900/60 backdrop-blur border-0 shadow-sm">
+                        <CardHeader className="pb-3">
+                            <CardTitle className="text-lg flex items-center gap-2">
+                                <Clock className="h-4 w-4 text-muted-foreground" />
+                                Recent Cases
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="pb-2">
+                            {cases.length === 0 ? (
+                                <div className="text-center py-8">
+                                    <FileText className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+                                    <p className="text-sm text-muted-foreground">No cases yet</p>
+                                    <p className="text-xs text-muted-foreground mt-1">Create your first analysis</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-1">
+                                    {cases.slice(0, 5).map((c) => (
                                         <Link
                                             key={c.id}
                                             href={`/orgs/${organizationName || 'demo'}/cases/${c.id}`}
-                                            className="flex justify-between items-center group cursor-pointer hover:bg-secondary/50 p-2 rounded-md transition-colors"
+                                            className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors group"
                                         >
-                                            <div>
-                                                <div className="font-medium text-sm group-hover:text-primary transition-colors">
+                                            <div className="flex-1 min-w-0 mr-3">
+                                                <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">
                                                     {c.caseTitle}
-                                                </div>
-                                                <div className="text-xs text-muted-foreground">
-                                                    {new Date(c.createdAt).toLocaleDateString('en-US', {
-                                                        month: 'short',
-                                                        day: 'numeric'
-                                                    })}
+                                                </p>
+                                                <div className="flex items-center gap-2 mt-0.5">
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {new Date(c.createdAt).toLocaleDateString('en-US', {
+                                                            month: 'short',
+                                                            day: 'numeric'
+                                                        })}
+                                                    </span>
+                                                    {Boolean(c.parameterizedRecommendations) && (
+                                                        <Badge variant="outline" className="text-[9px] py-0 h-4">
+                                                            <Settings2 className="h-2 w-2 mr-0.5" />
+                                                            Param
+                                                        </Badge>
+                                                    )}
                                                 </div>
                                             </div>
-                                            <Badge variant="secondary" className="text-[10px] capitalize">
+                                            <Badge
+                                                variant={c.status === 'analyzed' ? 'default' : c.status === 'error' ? 'destructive' : 'secondary'}
+                                                className="text-[10px] shrink-0"
+                                            >
                                                 {c.status}
                                             </Badge>
                                         </Link>
                                     ))}
-                                </CardContent>
-                                <CardFooter>
-                                    <Button variant="ghost" size="sm" className="w-full text-muted-foreground hover:text-foreground" asChild>
-                                        <Link href={`/orgs/${organizationName || 'demo'}/cases`}>
-                                            View All History <ChevronRight className="ml-1 h-3 w-3" />
-                                        </Link>
-                                    </Button>
-                                </CardFooter>
-                            </Card>
+                                </div>
+                            )}
+                        </CardContent>
+                        {cases.length > 0 && (
+                            <CardFooter className="pt-2">
+                                <Button variant="ghost" size="sm" className="w-full" asChild>
+                                    <Link href={`/orgs/${organizationName || 'demo'}/cases`}>
+                                        View All {dashboardStats.totalCases} Cases
+                                        <ChevronRight className="ml-1 h-4 w-4" />
+                                    </Link>
+                                </Button>
+                            </CardFooter>
                         )}
-
-                        {role === "institution_admin" && (
-                            <Card className="h-full bg-linear-to-br from-card to-secondary/30 border-secondary">
-                                <CardHeader>
-                                    <CardTitle className="text-lg flex items-center gap-2">
-                                        <Scale className="h-5 w-5 text-muted-foreground" />
-                                        Overview
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-6">
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-muted-foreground">Rules Active</span>
-                                        <div className="flex items-center gap-2 text-foreground font-medium">
-                                            {isLoadingRules ? (
-                                                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                                            ) : hasRules ? (
-                                                <>
-                                                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                                    Yes
-                                                </>
-                                            ) : (
-                                                <Button size="sm" variant="outline" onClick={handleInitializeRules} disabled={isSeeding}>
-                                                    {isSeeding ? <Loader2 className="h-3 w-3 animate-spin" /> : "Initialize ICSID Rules"}
-                                                </Button>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-muted-foreground">Arbitrators</span>
-                                        <span className="text-2xl font-bold">{arbitratorsCount}</span>
-                                    </div>
-                                </CardContent>
-                                <CardFooter>
-                                    <Button variant="outline" className="w-full" asChild>
-                                        <a href={`/orgs/${organizationName || 'demo'}/settings/history`}>
-                                            <FileText className="mr-2 h-4 w-4" />
-                                            Upload Historical Data
-                                        </a>
-                                    </Button>
-                                </CardFooter>
-                            </Card>
-                        )}
-                    </div>
+                    </Card>
                 </div>
 
-                {/* Footer Guardrail */}
-                <footer className="pt-20 pb-6 text-center animate-in fade-in duration-1000 delay-300">
-                    <p className="text-xs text-muted-foreground max-w-lg mx-auto opacity-70">
-                        Procedo provides structured, non-binding procedural insights. All
-                        procedural decisions remain with the arbitral tribunal.
+                {/* Institution Admin Section */}
+                {role === "institution_admin" && (
+                    <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <Card className="bg-white/60 dark:bg-zinc-900/60 backdrop-blur border-0 shadow-sm">
+                            <CardHeader>
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                    <Shield className="h-4 w-4 text-muted-foreground" />
+                                    Rules Configuration
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="flex justify-between items-center">
+                                    <div>
+                                        <p className="font-medium">ICSID Rules Database</p>
+                                        <p className="text-sm text-muted-foreground">Core procedural rules for analysis</p>
+                                    </div>
+                                    {isLoadingRules ? (
+                                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                                    ) : hasRules ? (
+                                        <Badge variant="default" className="bg-green-600">
+                                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                                            Active
+                                        </Badge>
+                                    ) : (
+                                        <Button size="sm" onClick={handleInitializeRules} disabled={isSeeding}>
+                                            {isSeeding ? <Loader2 className="h-4 w-4 animate-spin" /> : "Initialize Rules"}
+                                        </Button>
+                                    )}
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="bg-white/60 dark:bg-zinc-900/60 backdrop-blur border-0 shadow-sm">
+                            <CardHeader>
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                    <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                                    Analytics Summary
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <p className="text-2xl font-bold">{dashboardStats.analyzedCases}</p>
+                                        <p className="text-sm text-muted-foreground">Cases Analyzed</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-2xl font-bold">{dashboardStats.parameterizedCases}</p>
+                                        <p className="text-sm text-muted-foreground">Compliance Scored</p>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                )}
+
+                {/* Footer */}
+                <footer className="mt-12 text-center">
+                    <p className="text-xs text-muted-foreground">
+                        Procedo provides structured, non-binding procedural insights. All decisions remain with the arbitral tribunal.
                     </p>
                 </footer>
-
             </div>
         </main>
     );

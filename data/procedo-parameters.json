@@ -1,0 +1,241 @@
+{
+    "version": "1.0",
+    "description": "Procedo ICSID Parameters for AI Analysis",
+    "mandatory_provisions": [
+        {
+            "ref": "Arbitration Rule 1-2, 5-7",
+            "name": "Institutional Rules - Core Framework",
+            "ai_role": "monitor_only",
+            "action": "Assess compliance (complete content, proper filing). Cannot propose skipping or replacing.",
+            "documents": [
+                "PO No. 1"
+            ]
+        },
+        {
+            "ref": "Arbitration Rule 1(1)-(2)",
+            "name": "Application of Rules and Party Agreements",
+            "ai_role": "classification_only",
+            "action": "Classify draft procedural order provisions as (a) rule-consistent or (b) conflicting with rules and flag accordingly.",
+            "documents": [
+                "PO No. 1",
+                "Award"
+            ]
+        },
+        {
+            "ref": "Arbitration Rule 2",
+            "name": "Party and Party Representatives",
+            "ai_role": "extraction_and_flagging",
+            "action": "Extract party and representative details from submissions. Flag when proper authority documentation is missing or not on record.",
+            "documents": [
+                "PO No. 1"
+            ]
+        },
+        {
+            "ref": "Arbitration Rule 6",
+            "name": "Routing the Documents",
+            "ai_role": "service_verification",
+            "action": "Identify documents served upon parties. Flag when documents have not been supplied to either party.",
+            "documents": [
+                "PO No. 1"
+            ]
+        },
+        {
+            "ref": "Arbitration Rule 10",
+            "name": "Fixing Time Limits",
+            "ai_role": "verification_and_recommendation",
+            "action": "Verify time limits are expressly fixed for each procedural step. Confirm party consultation is recorded. Recommend if delegation to President will enhance efficiency.",
+            "documents": [
+                "PO No. 1"
+            ]
+        },
+        {
+            "ref": "Arbitration Rule 15-17",
+            "name": "Method of Constituting the Tribunal",
+            "ai_role": "compliance_check",
+            "action": "Check: number of arbitrators specified, appointment method recorded, Secretary-General validity. Issue alert if missing. For institutions: confirm Rule 15 prerequisites, default constitution triggered correctly.",
+            "documents": [
+                "PO No. 1"
+            ]
+        },
+        {
+            "ref": "Arbitration Rule 18",
+            "name": "Appointment of Arbitrators by Chair (Convention Rule 38)",
+            "ai_role": "verification",
+            "action": "Check 90-day threshold met, alternative period agreements, party consultation evidenced. Provide note if absent: 'Rule 18(3) requires consultation with the parties as far as possible prior to appointment.'",
+            "documents": [
+                "PO No. 1"
+            ]
+        },
+        {
+            "ref": "Arbitration Rule 19",
+            "name": "Acceptance of Appointment",
+            "ai_role": "comprehensive_tracking",
+            "action": "Check completeness of notifications, track 20-day deadline, validate procedural sequence, identify re-appointment triggers, confirm continuing disclosure obligation.",
+            "documents": [
+                "PO No. 1",
+                "Award"
+            ]
+        },
+        {
+            "ref": "Arbitration Rule 20",
+            "name": "Replacement of Arbitrators Prior to Constitution",
+            "ai_role": "verification",
+            "action": "Confirm change before constitution, record withdrawal/replacement reason, check same appointment method used, flag delays, verify procedural file reflects steps.",
+            "documents": [
+                "PO No. 1"
+            ]
+        },
+        {
+            "ref": "Arbitration Rule 22(a)(c)",
+            "name": "Disqualification of Arbitrators",
+            "ai_role": "deadline_monitoring",
+            "action": "Mark if disqualification request received within 21 days from constitution or knowledge of facts. Highlight if response filed within 21 days.",
+            "documents": [
+                "Award"
+            ]
+        },
+        {
+            "ref": "Arbitration Rule 29",
+            "name": "First Session",
+            "ai_role": "comprehensive_compliance",
+            "action": "Pre-Session: Check 60-day timeline, suggest complete agenda (items A-I). During: Provide checklist, flag missing items. Post: Score compliance, suggest improvements.",
+            "documents": [
+                "Award"
+            ]
+        },
+        {
+            "ref": "Arbitration Rule 35",
+            "name": "Majority Vote",
+            "ai_role": "flag_only",
+            "action": "Flag any procedural order or award that appears to depart from majority decision-making. Cannot propose alternatives.",
+            "documents": [
+                "PO No. 1",
+                "Award"
+            ]
+        },
+        {
+            "ref": "Arbitration Rule 32",
+            "name": "Hearings",
+            "ai_role": "scheduling_and_flagging",
+            "action": "Check if hearing required or waived. Suggest dates/times/formats based on efficiency and party locations. Flag if parties haven't agreed on location, remind default is seat.",
+            "documents": [
+                "PO No. 1"
+            ]
+        },
+        {
+            "ref": "Arbitration Rule 36(2)",
+            "name": "Burden of Proof",
+            "ai_role": "summary_only",
+            "action": "Summarize how tribunals allocate burdens in procedural orders. Cannot suggest reallocation contradicting this rule.",
+            "documents": []
+        },
+        {
+            "ref": "Arbitration Rule 41(2)(a)(e)",
+            "name": "Manifest Lack of Legal Merit",
+            "ai_role": "deadline_and_compliance",
+            "action": "Mark if objections received within 21 days from constitution. Check if decision rendered within 60 days. Score compliance, suggest improvements.",
+            "documents": [
+                "Award"
+            ]
+        },
+        {
+            "ref": "Convention Article 44",
+            "name": "Default Application of Arbitration Rules",
+            "ai_role": "strict_constraint",
+            "action": "Arbitration must be conducted strictly per Convention. Cannot suggest otherwise except for party-agreed procedural issues.",
+            "documents": []
+        },
+        {
+            "ref": "Arbitration Rule 58",
+            "name": "Award Timeline",
+            "ai_role": "tracking_and_countdown",
+            "action": "Check if 'last submission' event defined. Track date of last submission, closure, reopening, milestones. Generate 60/180/240 day countdown. Suggest checkpoints. Report timeline deviation and efficiency insights.",
+            "documents": [
+                "PO No. 1",
+                "Award"
+            ]
+        },
+        {
+            "ref": "Arbitration Rule 59",
+            "name": "Contents of the Award",
+            "ai_role": "checklist_and_scoring",
+            "action": "Generate structured checklist (items a-j). Flag missing items. Score: Fully Compliant (all included), Partially Compliant (some missing), Non-Compliant (critical missing).",
+            "documents": [
+                "Award"
+            ]
+        }
+    ],
+    "optimizable_provisions": [
+        {
+            "ref": "Arbitration Rule 7",
+            "name": "Procedural Language Choices",
+            "ai_role": "optimization",
+            "action": "Compare different languages and estimate translation/administrative burden. Suggest single language where both parties can reasonably operate, subject to fairness concerns.",
+            "impact": "Translation and administrative cost reduction",
+            "documents": [
+                "PO No. 1"
+            ]
+        },
+        {
+            "ref": "Arbitration Rule 36(3)",
+            "name": "Tribunal's Power to Call for Evidence",
+            "ai_role": "timeline_optimization",
+            "action": "Flag where multiple subsequent requests may hurt the timeframe of proceedings.",
+            "impact": "Prevent procedural delays",
+            "documents": [
+                "Award"
+            ]
+        },
+        {
+            "ref": "Arbitration Rule 42",
+            "name": "Bifurcation",
+            "ai_role": "historical_analysis",
+            "action": "Show historical data: cases where bifurcation shortened or lengthened overall proceedings. Inform tribunal discretion.",
+            "impact": "Data-driven bifurcation decisions",
+            "documents": [
+                "Award"
+            ]
+        },
+        {
+            "ref": "Arbitration Rule 43",
+            "name": "Preliminary Objections (Timing and Procedure)",
+            "ai_role": "timeline_optimization",
+            "action": "Evaluate whether multiple separate objection phases or overlapping merits submissions are optimal. Propose consolidated or slimmer timetables.",
+            "impact": "Streamlined procedural calendar",
+            "documents": [
+                "PO No. 1",
+                "Award"
+            ]
+        },
+        {
+            "ref": "Chapter XII - Expedited Arbitration (Rule 75+)",
+            "name": "Expedited Arbitration Regime",
+            "ai_role": "suitability_and_monitoring",
+            "action": "Advise on suitability of expedited regime based on complexity. Monitor compliance with expedited deadlines. Suggest procedural simplifications (written-only phases, limited witness lists).",
+            "impact": "Faster resolution for suitable cases",
+            "documents": [
+                "PO No. 1",
+                "Award"
+            ]
+        }
+    ],
+    "compliance_scoring": {
+        "levels": [
+            {
+                "score": "fully_compliant",
+                "label": "Fully Compliant",
+                "description": "All mandatory items included"
+            },
+            {
+                "score": "partially_compliant",
+                "label": "Partially Compliant",
+                "description": "Some items missing"
+            },
+            {
+                "score": "non_compliant",
+                "label": "Non-Compliant",
+                "description": "Critical items missing"
+            }
+        ]
+    }
+}

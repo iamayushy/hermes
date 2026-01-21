@@ -3,11 +3,11 @@ import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { cases } from "@/db/schema/cases";
 import { eq, and } from "drizzle-orm";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { FileText, ChevronLeft, Calendar, Download } from "lucide-react";
 import Link from "next/link";
-import { RecommendationDisplay } from "@/components/recommendation-display";
+import { CaseAnalysisTabs } from "@/components/case-analysis-tabs";
 import { Button } from "@/components/ui/button";
 
 export default async function CaseDetailPage({
@@ -47,14 +47,12 @@ export default async function CaseDetailPage({
                             <h1 className="text-3xl font-bold tracking-tight">{caseItem.caseTitle}</h1>
                             <p className="text-muted-foreground flex items-center gap-2 mt-2">
                                 <Calendar className="h-4 w-4" />
-                                Analyzed on{" "}
-                                {caseItem.analyzedAt
-                                    ? new Date(caseItem.analyzedAt).toLocaleDateString("en-US", {
-                                        month: "long",
-                                        day: "numeric",
-                                        year: "numeric",
-                                    })
-                                    : "Processing..."}
+                                Created on{" "}
+                                {new Date(caseItem.createdAt).toLocaleDateString("en-US", {
+                                    month: "long",
+                                    day: "numeric",
+                                    year: "numeric",
+                                })}
                             </p>
                         </div>
                         <Badge
@@ -79,7 +77,7 @@ export default async function CaseDetailPage({
                             Document Information
                         </CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-2">
+                    <CardContent className="space-y-4">
                         <div className="flex items-center justify-between">
                             <div className="space-y-1">
                                 <p className="text-sm font-medium">File Name</p>
@@ -92,7 +90,7 @@ export default async function CaseDetailPage({
                                 </a>
                             </Button>
                         </div>
-                        <div className="grid grid-cols-2 gap-4 pt-2 border-t">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2 border-t">
                             <div>
                                 <p className="text-sm font-medium">File Size</p>
                                 <p className="text-sm text-muted-foreground">
@@ -105,25 +103,42 @@ export default async function CaseDetailPage({
                                     {new Date(caseItem.createdAt).toLocaleDateString()}
                                 </p>
                             </div>
+                            <div>
+                                <p className="text-sm font-medium">Default Analysis</p>
+                                <p className="text-sm text-muted-foreground">
+                                    {caseItem.defaultRecommendations
+                                        ? (caseItem.analyzedAt ? new Date(caseItem.analyzedAt).toLocaleDateString() : "Yes")
+                                        : "Not run"}
+                                </p>
+                            </div>
+                            <div>
+                                <p className="text-sm font-medium">Parameterized Analysis</p>
+                                <p className="text-sm text-muted-foreground">
+                                    {caseItem.parameterizedRecommendations
+                                        ? (caseItem.parameterizedAnalyzedAt ? new Date(caseItem.parameterizedAnalyzedAt).toLocaleDateString() : "Yes")
+                                        : "Not run"}
+                                </p>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
 
-                {/* Recommendations */}
-                {caseItem.status === "analyzed" && caseItem.aiRecommendations ? (
-                    <RecommendationDisplay data={JSON.stringify(caseItem.aiRecommendations)} />
-                ) : caseItem.status === "error" ? (
+                {/* Error State */}
+                {caseItem.status === "error" && (
                     <Card className="border-destructive/50 bg-destructive/5">
                         <CardContent className="pt-6">
                             <p className="text-destructive">{caseItem.errorMessage || "Analysis failed"}</p>
                         </CardContent>
                     </Card>
-                ) : (
-                    <Card>
-                        <CardContent className="pt-6">
-                            <p className="text-muted-foreground">Analysis in progress...</p>
-                        </CardContent>
-                    </Card>
+                )}
+
+                {/* Tabbed Analysis View */}
+                {caseItem.status !== "error" && (
+                    <CaseAnalysisTabs
+                        caseTitle={caseItem.caseTitle}
+                        defaultRecommendations={caseItem.defaultRecommendations}
+                        parameterizedRecommendations={caseItem.parameterizedRecommendations}
+                    />
                 )}
             </div>
         </div>

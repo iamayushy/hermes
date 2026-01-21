@@ -6,7 +6,7 @@ import { auth } from "@clerk/nextjs/server";
 import { put } from "@vercel/blob";
 import { db } from "@/db";
 import { cases } from "@/db/schema/cases";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
 export const runtime = "nodejs";
 export const maxDuration = 60; // 60 seconds for complex analysis
@@ -37,6 +37,7 @@ export async function POST(req: NextRequest) {
         const formData = await req.formData();
         const file = formData.get("file") as File;
         const caseTitle = (formData.get("caseTitle") as string) || file.name.replace('.pdf', '');
+        const existingCaseId = formData.get("caseId") as string | null;
 
         if (!file) {
             return new Response(JSON.stringify({ error: "No file provided" }), { status: 400 });
@@ -51,21 +52,39 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // 4. Upload file to Vercel Blob
-        const blob = await put(`cases/${orgId}/${Date.now()}-${file.name}`, file, {
-            access: 'public',
-        });
+        let caseRecord: { id: string };
 
-        // 5. Create case record in database
-        const [caseRecord] = await db.insert(cases).values({
-            orgId,
-            userId,
-            caseTitle,
-            fileName: file.name,
-            fileSize: file.size,
-            fileUrl: blob.url,
-            status: 'pending',
-        }).returning();
+        // Check if we're updating an existing case or creating a new one
+        if (existingCaseId) {
+            // Validate the case exists and belongs to this org
+            const [existingCase] = await db
+                .select({ id: cases.id })
+                .from(cases)
+                .where(and(eq(cases.id, existingCaseId), eq(cases.orgId, orgId)));
+
+            if (!existingCase) {
+                return new Response(JSON.stringify({ error: "Case not found" }), { status: 404 });
+            }
+            caseRecord = existingCase;
+        } else {
+            // 4. Upload file to Vercel Blob (only for new cases)
+            const blob = await put(`cases/${orgId}/${Date.now()}-${file.name}`, file, {
+                access: 'public',
+            });
+
+            // 5. Create case record in database
+            const [newCase] = await db.insert(cases).values({
+                orgId,
+                userId,
+                caseTitle,
+                fileName: file.name,
+                fileSize: file.size,
+                fileUrl: blob.url,
+                status: 'pending',
+            }).returning();
+
+            caseRecord = newCase;
+        }
 
         // 6. Extract text from PDF
         let text: string;
@@ -75,23 +94,35 @@ export async function POST(req: NextRequest) {
                 throw new Error("Could not extract text from PDF");
             }
         } catch (error) {
-            // Update case with error
+            const errorMessage = String(error);
+
+            // Update case with specific error message
+            let userFriendlyError = "Could not extract text from PDF";
+
+            if (errorMessage.includes("unsupported encryption")) {
+                userFriendlyError = "This PDF is encrypted or password-protected. Please upload an unencrypted version.";
+            } else if (errorMessage.includes("Invalid PDF")) {
+                userFriendlyError = "This file appears to be corrupted or is not a valid PDF.";
+            }
+
             await db.update(cases)
                 .set({
                     status: 'error',
-                    errorMessage: 'Could not extract text from PDF'
+                    errorMessage: userFriendlyError
                 })
                 .where(eq(cases.id, caseRecord.id));
 
-            return new Response(JSON.stringify({ error: "Could not extract text from PDF" }), {
+            return new Response(JSON.stringify({ error: userFriendlyError }), {
                 status: 400,
             });
         }
 
         // 7. Generate recommendations (streaming)
+        const analysisMode = (formData.get("analysisMode") as string) || "default";
         const stream = await generateRecommendations({
             text,
             orgId,
+            analysisMode: analysisMode as "default" | "with_parameters",
         });
 
         // 8. Collect the full response to save to database
@@ -110,23 +141,62 @@ export async function POST(req: NextRequest) {
 
                     // Save recommendations to database after streaming completes
                     try {
-                        const cleanedData = fullRecommendations.trim()
+                        let cleanedData = fullRecommendations.trim()
                             .replace(/^```json\s*/i, '')
                             .replace(/^```\s*/i, '')
                             .replace(/\s*```$/i, '')
                             .trim();
 
+                        // Try to find JSON in the response if it starts with non-JSON content
+                        if (!cleanedData.startsWith('{')) {
+                            const jsonStart = cleanedData.indexOf('{');
+                            const jsonEnd = cleanedData.lastIndexOf('}');
+                            if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+                                cleanedData = cleanedData.substring(jsonStart, jsonEnd + 1);
+                            }
+                        }
+
                         const parsedRecommendations = JSON.parse(cleanedData);
 
-                        await db.update(cases)
-                            .set({
-                                status: 'analyzed',
-                                aiRecommendations: parsedRecommendations,
-                                analyzedAt: new Date()
-                            })
-                            .where(eq(cases.id, caseRecord.id));
+                        // Save to appropriate column based on analysis mode
+                        if (analysisMode === "with_parameters") {
+                            await db.update(cases)
+                                .set({
+                                    status: 'analyzed',
+                                    parameterizedRecommendations: parsedRecommendations,
+                                    parameterizedAnalyzedAt: new Date()
+                                })
+                                .where(eq(cases.id, caseRecord.id));
+                        } else {
+                            await db.update(cases)
+                                .set({
+                                    status: 'analyzed',
+                                    defaultRecommendations: parsedRecommendations,
+                                    analyzedAt: new Date()
+                                })
+                                .where(eq(cases.id, caseRecord.id));
+                        }
                     } catch (e) {
                         console.error("Failed to save recommendations:", e);
+                        // Still save raw text as fallback
+                        const fallbackData = { raw_response: fullRecommendations.substring(0, 10000) };
+                        if (analysisMode === "with_parameters") {
+                            await db.update(cases)
+                                .set({
+                                    status: 'analyzed',
+                                    parameterizedRecommendations: fallbackData,
+                                    parameterizedAnalyzedAt: new Date()
+                                })
+                                .where(eq(cases.id, caseRecord.id));
+                        } else {
+                            await db.update(cases)
+                                .set({
+                                    status: 'analyzed',
+                                    defaultRecommendations: fallbackData,
+                                    analyzedAt: new Date()
+                                })
+                                .where(eq(cases.id, caseRecord.id));
+                        }
                     }
 
                     controller.close();

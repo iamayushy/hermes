@@ -25,11 +25,13 @@ export const cases = pgTable("cases", {
     // Analysis Status
     status: text("status").notNull(), // 'pending' | 'analyzed' | 'error'
 
-    // AI Recommendations
-    aiRecommendations: jsonb("ai_recommendations"),
+    // AI Recommendations - Both Types
+    defaultRecommendations: jsonb("default_recommendations"),
+    parameterizedRecommendations: jsonb("parameterized_recommendations"),
     errorMessage: text("error_message"),
 
     // Timestamps
     createdAt: timestamp("created_at").defaultNow().notNull(),
-    analyzedAt: timestamp("analyzed_at")
+    analyzedAt: timestamp("analyzed_at"),
+    parameterizedAnalyzedAt: timestamp("parameterized_analyzed_at")
 })
