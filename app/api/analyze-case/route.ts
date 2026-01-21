@@ -3,7 +3,6 @@ import { NextRequest } from "next/server";
 import PDFParser from "pdf2json";
 import { generateRecommendations } from "@/lib/recommendation-engine";
 import { auth } from "@clerk/nextjs/server";
-import { put } from "@vercel/blob";
 import { db } from "@/db";
 import { cases } from "@/db/schema/cases";
 import { eq, and } from "drizzle-orm";
@@ -18,8 +17,12 @@ async function updateProgress(caseId: string, progress: number, step: string) {
         .where(eq(cases.id, caseId));
 }
 
-async function extractPDFText(file: File): Promise<string> {
-    const arrayBuffer = await file.arrayBuffer();
+async function extractPDFText(fileUrl: string): Promise<string> {
+    const response = await fetch(fileUrl);
+    if (!response.ok) {
+        throw new Error(`Failed to fetch PDF from URL: ${response.statusText}`);
+    }
+    const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
     return new Promise<string>((resolve, reject) => {
@@ -116,29 +119,16 @@ export async function POST(req: NextRequest) {
             return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
         }
 
-        const formData = await req.formData();
-        const file = formData.get("file") as File;
-        const caseTitle = (formData.get("caseTitle") as string) || file.name.replace('.pdf', '');
-        const existingCaseId = formData.get("caseId") as string | null;
-        const analysisMode = (formData.get("analysisMode") as "default" | "with_parameters") || "default";
-
-        if (!file) {
-            return new Response(JSON.stringify({ error: "No file provided" }), { status: 400 });
-        }
-
-        const MAX_FILE_SIZE = 10 * 1024 * 1024;
-        if (file.size > MAX_FILE_SIZE) {
-            return new Response(
-                JSON.stringify({ error: `File too large. Max size is ${MAX_FILE_SIZE / 1024 / 1024}MB` }),
-                { status: 400 }
-            );
-        }
+        const body = await req.json();
+        const { analysisMode, caseId: existingCaseId, fileUrl, fileName, fileSize } = body;
+        const caseTitle = fileName ? fileName.replace('.pdf', '') : "Case Analysis";
 
         let caseId: string;
+        let finalFileUrl = fileUrl;
 
         if (existingCaseId) {
             const [existingCase] = await db
-                .select({ id: cases.id })
+                .select({ id: cases.id, fileUrl: cases.fileUrl })
                 .from(cases)
                 .where(and(eq(cases.id, existingCaseId), eq(cases.orgId, orgId)));
 
@@ -146,6 +136,7 @@ export async function POST(req: NextRequest) {
                 return new Response(JSON.stringify({ error: "Case not found" }), { status: 404 });
             }
             caseId = existingCase.id;
+            finalFileUrl = existingCase.fileUrl; // Use stored URL for existing cases
 
             await db.update(cases)
                 .set({
@@ -155,17 +146,17 @@ export async function POST(req: NextRequest) {
                 })
                 .where(eq(cases.id, caseId));
         } else {
-            const blob = await put(`cases/${orgId}/${Date.now()}-${file.name}`, file, {
-                access: 'public',
-            });
+            if (!fileUrl) {
+                return new Response(JSON.stringify({ error: "No file URL provided" }), { status: 400 });
+            }
 
             const [newCase] = await db.insert(cases).values({
                 orgId,
                 userId,
                 caseTitle,
-                fileName: file.name,
-                fileSize: file.size,
-                fileUrl: blob.url,
+                fileName: fileName || "document.pdf",
+                fileSize: fileSize || 0,
+                fileUrl: fileUrl,
                 status: 'processing',
                 analysisProgress: 5,
                 currentStep: "Preparing analysis...",
@@ -178,8 +169,9 @@ export async function POST(req: NextRequest) {
 
         let text: string;
         try {
-            text = await extractPDFText(file);
+            text = await extractPDFText(finalFileUrl);
         } catch (error) {
+            console.error("Text extraction failed:", error);
             await db.update(cases)
                 .set({
                     status: 'error',
@@ -200,7 +192,7 @@ export async function POST(req: NextRequest) {
         }
 
         after(async () => {
-            await processAnalysis(caseId, text, analysisMode, orgId);
+            await processAnalysis(caseId, text, analysisMode as "default" | "with_parameters" || "default", orgId);
         });
 
         return new Response(
