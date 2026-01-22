@@ -80,13 +80,52 @@ export async function findTimelineBenchmarks(orgId: string) {
   return benchmarks;
 }
 
+// ... imports
+// (Note: We need to import the response type if we want to be strict, but for now we infer)
+
+async function classifyDocument(text: string): Promise<{ is_icsid: boolean; jurisdiction: string; rationale: string }> {
+  const system = `You are an expert legal classifier. Determine the jurisdiction of this arbitration document.
+  
+  OUTPUT JSON ONLY:
+  {
+    "is_icsid": boolean, // true if ICSID or Investment Treaty Arbitration
+    "jurisdiction": "ICSID" | "UNCITRAL" | "ICC" | "LCIA" | "Other",
+    "rationale": "Brief explanation"
+  }`;
+
+  const msg = await anthropic.messages.create({
+    model: "claude-sonnet-4-5",
+    max_tokens: 8000,
+    system: system,
+    messages: [{ role: "user", content: `DOCUMENT START:\n${text.slice(0, 10000)}\nDOCUMENT END` }]
+  });
+
+  const content = msg.content[0].type === 'text' ? msg.content[0].text : "{}";
+  try {
+    // Basic cleanup just in case
+    const jsonStr = content.replace(/```json/g, '').replace(/```/g, '').trim();
+    return JSON.parse(jsonStr);
+  } catch (e) {
+    console.error("Classification parse error", e);
+    return { is_icsid: true, jurisdiction: "ICSID", rationale: "Default to ICSID on error" };
+  }
+}
+
 export function buildRecommendationPrompt(
   caseText: string,
   rules: any[],
   precedents: Record<string, any[]>,
-  timelines: Record<string, any>
+  timelines: Record<string, any>,
+  jurisdiction: string = "ICSID"
 ) {
-  const systemPrompt = `You are Procedo, an expert ICSID procedural advisor AI. Your role is to analyze case documents and provide ACTIONABLE PROCEDURAL RECOMMENDATIONS that arbitrators and parties can immediately use.
+  const isIcsid = jurisdiction === "ICSID";
+
+  const systemPrompt = `You are Procedo, an expert ${isIcsid ? "Senior ICSID Counsel" : "International Arbitration Procedural Advisor"}. Your role is to strictly analyze case documents and provide ACTIONABLE, LOGICALLY REASONED PROCEDURAL RECOMMENDATIONS.
+
+ROLE & MINDSET:
+- **Mandatory Rules ("Compliance")**: Be STRICT. If a rule is violated, state it clearly.
+- **Discretionary/Strategic Items ("Recommendations")**: Be CONSULTATIVE. Use phrasing like "The Tribunal may consider...", "It could be beneficial to...", "This approach allows...".
+- **Logical Reasoning**: Every point must follow: [Observation] -> [Rule/Principle] -> [Strategic Implication] -> [Suggestion].
 
 CRITICAL: OUTPUT FORMAT REQUIREMENTS
 - You MUST output ONLY valid JSON. No markdown, no explanations, no headers.
@@ -100,24 +139,15 @@ DOCUMENT VALIDATION:
   "message": "This does not appear to be a valid case document. Please upload an arbitration-related document."
 }
 
-2. NON-ICSID WARNING:
-If the document is an arbitration document but NOT related to ICSID (International Centre for Settlement of Investment Disputes) or investment treaty arbitration (e.g. UNCITRAL investment cases), respond ONLY with:
-{
-  "warning": "non_icsid_document",
-  "message": "This document appears to be from a non-ICSID proceeding. Procedo compliance checks are calibrated specifically for ICSID rules and may not apply here."
-}
-
 YOUR CORE MISSION:
-As Procedo, you must provide CLEAR, ACTIONABLE recommendations that help:
-1. Arbitrators make procedural decisions efficiently
-2. Parties understand procedural requirements
-3. Ensure ICSID Convention compliance
-4. Optimize time and cost
+1. **Highlight Risks**: Identify procedural traps that could lead to annulment.
+2. **Suggest Improvements**: Propose "what could be done better" based on efficiency and best practices.
+3. **Ensure Compliance**: Verify strict adherence to ${isIcsid ? "ICSID Convention & Rules" : "International Standards"}.
 
-APPLICABLE RULES:
+APPLICABLE RULES (${isIcsid ? "Institutional" : "Reference"}):
 ${JSON.stringify(rules.slice(0, 10), null, 2)}
 
-HISTORICAL PRECEDENTS:
+HISTORICAL PRECEDENTS (Context only):
 ${JSON.stringify(
     Object.entries(precedents)
       .slice(0, 5)
@@ -135,24 +165,25 @@ ${JSON.stringify(timelines, null, 2)}
 
 OUTPUT SCHEMA - PROCEDO ANALYSIS REPORT:
 {
-  "case_summary": "Brief 2-3 sentence summary of the case",
+  "case_summary": "Concise summary focusing on procedural status (Jurisdiction: ${jurisdiction})",
   "document_type": "Procedural Order | Memorial | Submission | Award | Other",
   
   "procedo_recommends": {
     "primary_recommendations": [
       {
         "title": "Short actionable title",
-        "recommendation": "Clear, specific recommendation",
-        "rationale": "Why this matters for the case",
-        "priority": "high | medium | low",
-        "rule_reference": "ICSID Rule X / Convention Article Y"
+        "recommendation": "Direct instruction for the tribunal",
+        "rationale": "Logical chain: Fact + Rule = Necessity",
+        "priority": "critical | high | medium",
+        "rule_reference": "${isIcsid ? "ICSID Rule X" : "UNCITRAL/IBA Rule"}"
       }
     ],
     "procedural_checklist": [
       {
-        "item": "Specific procedural item to address",
-        "status": "required | recommended | optional",
-        "deadline_guidance": "Suggested timeline or deadline"
+        "item": "Specific procedural action item",
+        "status": "missing_critical | required | recommended",
+        "deadline_guidance": "Specific timeline based on benchmarks",
+        "risk_if_ignored": "What happens if this is missed?"
       }
     ]
   },
@@ -160,8 +191,8 @@ OUTPUT SCHEMA - PROCEDO ANALYSIS REPORT:
   "recommendations": {
     "language": {
       "recommendation": "English | French | Spanish | Bilingual",
-      "reasoning": "Why this language choice",
-      "rule_ref": "Arbitration Rule 7",
+      "reasoning": "Analyze detailed costs/benefits vs party equality",
+      "rule_ref": "Arbitration Rule",
       "confidence": "high | medium | low"
     },
     "timeline": {
@@ -169,38 +200,38 @@ OUTPUT SCHEMA - PROCEDO ANALYSIS REPORT:
         {
           "name": "Phase name",
           "suggested_days": 60,
-          "reasoning": "Based on case complexity",
-          "benchmark": "Historical average"
+          "reasoning": "Account for case complexity (volume of docs, etc)",
+          "benchmark": "Compare with avg: X days"
         }
       ],
-      "rule_ref": "Arbitration Rule 29"
+      "rule_ref": "Arbitration Rule"
     },
     "bifurcation": {
       "recommendation": "grant | deny | defer",
-      "reasoning": "Explain the rationale",
-      "historical_context": "Success rate in similar cases",
-      "rule_ref": "Arbitration Rule 42",
+      "reasoning": "Analyze 'efficiency vs due process' trade-off",
+      "historical_context": "Statistically supported by X precedents",
+      "rule_ref": "Arbitration Rule",
       "discretionary": true
     },
     "document_production": {
-      "recommendation": "Approach to document production",
-      "reasoning": "Balance relevance vs. burden",
-      "rule_ref": "Arbitration Rule 36"
+      "recommendation": "Redfern | IPO | None",
+      "reasoning": "Strictly limit to material/relevant to avoid 'fishing expeditions'",
+      "rule_ref": "Arbitration Rule / IBA Rules"
     },
     "hearing_format": {
       "recommendation": "in-person | virtual | hybrid",
-      "reasoning": "Consider party locations, costs",
-      "rule_ref": "Arbitration Rule 32"
+      "reasoning": "Carbon footprint vs Due Process (Rule 32)",
+      "rule_ref": "Arbitration Rule"
     },
     "evidence_management": {
-      "recommendations": ["Specific evidence management suggestions"],
-      "rule_ref": "Arbitration Rule 36"
+      "recommendations": ["Strict deadlines", "Format requirements"],
+      "rule_ref": "Arbitration Rule / IBA Rules"
     },
     "efficiency_suggestions": [
       {
         "type": "cost_reduction | time_saving | procedural_efficiency",
-        "suggestion": "Brief description",
-        "rationale": "Why this saves time/cost",
+        "suggestion": "Specific, non-obvious suggestion",
+        "rationale": "Logical efficiency gain description",
         "potential_impact": "high | medium | low",
         "estimated_savings": "Time or cost estimate"
       }
@@ -208,10 +239,10 @@ OUTPUT SCHEMA - PROCEDO ANALYSIS REPORT:
     "mandatory_flags": [
       {
         "issue": "Critical compliance issue",
-        "severity": "high | medium | low",
+        "severity": "critical | high | medium",
         "rule_ref": "Convention Article / Rule",
         "annulment_risk": true,
-        "immediate_action": "What must be done"
+        "immediate_action": "Strict corrective action required"
       }
     ]
   }
@@ -228,9 +259,12 @@ export function buildParameterizedPrompt(
   caseText: string,
   rules: any[],
   precedents: Record<string, any[]>,
-  timelines: Record<string, any>
+  timelines: Record<string, any>,
+  jurisdiction: string = "ICSID"
 ) {
-  const systemPrompt = `You are an expert ICSID procedural advisor with access to Procedo's institutional parameters. Analyze the case document against these specific compliance requirements.
+  const isIcsid = jurisdiction === "ICSID";
+
+  const systemPrompt = `You are an expert ${isIcsid ? "ICSID Institutional Counsel" : "International Arbitration Auditor"} with access to Procedo's institutional parameters. Your goal is to strictly audit the case document for compliance, optimization, and logical consistency.
 
 CRITICAL: OUTPUT FORMAT REQUIREMENTS
 - You MUST output ONLY valid JSON. No markdown, no explanations, no headers.
@@ -245,22 +279,16 @@ DOCUMENT VALIDATION:
   "message": "This does not appear to be a valid case document. Please upload an arbitration-related document."
 }
 
-2. NON-ICSID WARNING:
-If the document is an arbitration document but NOT related to ICSID (International Centre for Settlement of Investment Disputes) or investment treaty arbitration (e.g. UNCITRAL investment cases), respond ONLY with:
-{
-  "warning": "non_icsid_document",
-  "message": "This document appears to be from a non-ICSID proceeding. Procedo compliance checks are calibrated specifically for ICSID rules and may not apply here."
-}
+PROCEDO ANALYSIS FRAMEWORK (${isIcsid ? "ICSID Strict Audit" : "General Standards Audit"}):
+You must analyze using TWO distinct categories of provisions.
+${!isIcsid ? "NOTE: As this is a non-ICSID case, apply equivalent International Standards (IBA/UNCITRAL) where strict ICSID rules do not apply." : ""}
 
-PROCEDO ANALYSIS FRAMEWORK:
-You must analyze using TWO distinct categories of provisions:
-
-=== MANDATORY PROVISIONS (Compliance Check Only) ===
-For these provisions, Procedo can ONLY monitor, flag, and verify compliance. Cannot suggest alternatives.
+=== MANDATORY PROVISIONS (Strict Compliance Check) ===
+For these provisions, you must act as a 'Guardian of the Rules'. Flag ANY deviation.
 ${JSON.stringify(procedoParameters.mandatory_provisions, null, 2)}
 
-=== OPTIMIZABLE PROVISIONS (AI Can Suggest Improvements) ===
-For these provisions, Procedo can actively suggest optimizations and improvements.
+=== OPTIMIZABLE PROVISIONS (Strategic Improvements) ===
+For these provisions, suggest improvements that save time/cost without compromising due process.
 ${JSON.stringify(procedoParameters.optimizable_provisions, null, 2)}
 
 APPLICABLE INSTITUTIONAL RULES (ALL):
@@ -288,20 +316,20 @@ ${JSON.stringify(procedoParameters.compliance_scoring, null, 2)}
 
 OUTPUT SCHEMA (Parameterized Analysis):
 {
-  "case_summary": "Brief 2-3 sentence summary",
+  "case_summary": "Brief 2-3 sentence summary (Jurisdiction: ${jurisdiction})",
   "document_type": "PO No. 1 | Award | Memorial | Submission | Other",
   "compliance_score": {
     "overall": "fully_compliant | partially_compliant | non_compliant",
     "score_percentage": 85,
-    "summary": "Brief explanation of overall compliance"
+    "summary": "High-level audit summary focusing on key risks"
   },
   "mandatory_compliance": [
     {
       "provision_ref": "Arbitration Rule X",
       "provision_name": "Name",
       "status": "compliant | non_compliant | not_applicable",
-      "finding": "What was found in the document",
-      "action_required": "If non-compliant, what needs to be done",
+      "finding": "Specific fact from document",
+      "action_required": "Exact steps to remedy non-compliance",
       "annulment_risk": true | false
     }
   ],
@@ -309,18 +337,18 @@ OUTPUT SCHEMA (Parameterized Analysis):
     {
       "provision_ref": "Arbitration Rule X",
       "provision_name": "Name",
-      "current_approach": "What the document currently does",
-      "suggested_optimization": "What could be improved",
-      "potential_impact": "high | medium | low",
-      "estimated_savings": "Time or cost savings",
+      "current_approach": "Observed approach",
+      "suggested_optimization": "Proposed better approach",
+      "potential_impact": "critical | high | medium",
+      "estimated_savings": "Time/Cost metric",
       "ai_role": "optimization | historical_analysis | timeline_optimization"
     }
   ],
   "recommendations": {
     "language": {
       "recommendation": "English | French | Spanish | Bilingual",
-      "reasoning": "Why this language choice",
-      "rule_ref": "Arbitration Rule 7",
+      "reasoning": "Analyze detailed costs/benefits vs party equality",
+      "rule_ref": "Arbitration Rule",
       "confidence": "high | medium | low"
     },
     "timeline": {
@@ -328,30 +356,30 @@ OUTPUT SCHEMA (Parameterized Analysis):
         {
           "name": "Phase name",
           "suggested_days": 60,
-          "reasoning": "Based on historical avg",
-          "benchmark": "Avg in similar cases"
+          "reasoning": "Account for case complexity vs benchmarks",
+          "benchmark": "Avg: X days"
         }
       ],
-      "rule_ref": "Arbitration Rule 29"
+      "rule_ref": "Arbitration Rule"
     },
     "bifurcation": {
       "recommendation": "grant | deny | defer",
-      "reasoning": "Explain based on jurisdictional issues",
+      "reasoning": "Analyze jurisdiction/merits overlap efficiency",
       "historical_context": "X% grant rate",
-      "rule_ref": "Arbitration Rule 42",
+      "rule_ref": "Arbitration Rule",
       "discretionary": true
     },
     "hearing_format": {
       "recommendation": "in-person | virtual | hybrid",
-      "reasoning": "Consider party locations, urgency",
-      "rule_ref": "Arbitration Rule 32"
+      "reasoning": "Logistics vs Due Process",
+      "rule_ref": "Arbitration Rule"
     }
   },
   "efficiency_suggestions": [
     {
       "type": "language_optimization | cost_reduction | time_saving | procedural_efficiency",
-      "suggestion": "Brief description",
-      "rationale": "Why this saves time/cost",
+      "suggestion": "Specific, non-obvious suggestion",
+      "rationale": "Logical efficiency gain description",
       "potential_impact": "high | medium | low",
       "estimated_savings": "Time or cost estimate"
     }
@@ -359,10 +387,10 @@ OUTPUT SCHEMA (Parameterized Analysis):
   "critical_flags": [
     {
       "issue": "Description of critical issue",
-      "severity": "high | medium | low",
+      "severity": "critical | high | medium",
       "rule_ref": "Reference",
       "annulment_risk": true | false,
-      "immediate_action": "What must be done"
+      "immediate_action": "Strict corrective action required"
     }
   ]
 }`;
@@ -376,17 +404,23 @@ OUTPUT SCHEMA (Parameterized Analysis):
 export async function generateRecommendations(caseContext: CaseContext) {
   const { text, orgId, analysisMode = "default" } = caseContext;
 
-  // 1. Query database
+  // 1. Classification Step
+  // We classify first to understand jurisdiction
+  const classification = await classifyDocument(text);
+  const jurisdiction = classification.jurisdiction || (classification.is_icsid ? "ICSID" : "General Commercial");
+
+  // 2. Query database for rules/precedents
+  // (We still load these even if non-ICSID, as they might provide good reference 'benchmarks')
   const rules = await matchRules(orgId);
   const precedents = await findPrecedents(orgId);
   const timelines = await findTimelineBenchmarks(orgId);
 
-  // 2. Build prompt based on analysis mode
+  // 3. Build prompt based on analysis mode AND jurisdiction
   const { system, userMessage } = analysisMode === "with_parameters"
-    ? buildParameterizedPrompt(text, rules, precedents, timelines)
-    : buildRecommendationPrompt(text, rules, precedents, timelines);
+    ? buildParameterizedPrompt(text, rules, precedents, timelines, jurisdiction)
+    : buildRecommendationPrompt(text, rules, precedents, timelines, jurisdiction);
 
-  // 3. Call Claude with streaming
+  // 4. Call Claude with streaming
   const stream = anthropic.messages.stream({
     model: "claude-sonnet-4-5",
     max_tokens: 8000,
