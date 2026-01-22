@@ -9,7 +9,7 @@ import { eq } from "drizzle-orm";
 import { after } from "next/server";
 
 export const runtime = "nodejs";
-export const maxDuration = 600; // Increased to 5 minutes to prevent timeouts
+export const maxDuration = 300;
 
 async function updateProgress(caseId: string, progress: number, step: string) {
     await db.update(cases)
@@ -39,7 +39,7 @@ async function processAnalysis(
     text: string,
     analysisMode: "default" | "with_parameters",
     orgId: string,
-    jurisdiction?: string  // NEW: Optional pre-computed jurisdiction
+    jurisdiction?: string
 ) {
     try {
         await updateProgress(caseId, 20, "Starting AI analysis...");
@@ -48,7 +48,7 @@ async function processAnalysis(
             text,
             orgId,
             analysisMode,
-            jurisdiction  // Pass pre-computed jurisdiction if available
+            jurisdiction
         });
         let fullRecommendations = "";
 
@@ -124,12 +124,12 @@ async function processAnalysis(
 export async function POST(req: NextRequest) {
     try {
         const { userId, orgId } = await auth();
-        // ... auth checks ...
+
         if (!userId || !orgId) {
             return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
         }
 
-        // Accept JSON body with fileUrl from client-side upload
+
         const body = await req.json();
         const { fileUrl, fileName, fileSize } = body;
 
@@ -137,7 +137,7 @@ export async function POST(req: NextRequest) {
             return new Response(JSON.stringify({ error: "No file URL provided" }), { status: 400 });
         }
 
-        // Create case record
+
         const [newCase] = await db.insert(cases).values({
             orgId,
             userId,
@@ -152,10 +152,8 @@ export async function POST(req: NextRequest) {
 
         const caseId = newCase.id;
 
-        // Run all processing in background to return quickly
         after(async () => {
             try {
-                // Extract text
                 await updateProgress(caseId, 10, "Extracting text from PDF...");
                 let text: string;
                 try {
@@ -171,7 +169,7 @@ export async function POST(req: NextRequest) {
                     return;
                 }
 
-                // Classify document ONCE before running both analyses
+
                 const { classifyDocument } = await import("@/lib/recommendation-engine");
                 const classification = await classifyDocument(text, {});
                 const jurisdiction = classification.jurisdiction ||
@@ -179,18 +177,15 @@ export async function POST(req: NextRequest) {
 
                 await updateProgress(caseId, 25, `Detected jurisdiction: ${jurisdiction}`);
 
-                // Run both analysis tasks in parallel, sharing the jurisdiction
+
                 const results = await Promise.allSettled([
                     processAnalysis(caseId, text, "default", orgId, jurisdiction),
                     processAnalysis(caseId, text, "with_parameters", orgId, jurisdiction)
                 ]);
 
-                // Check results
                 const failed = results.filter(r => r.status === 'rejected');
                 if (failed.length > 0) {
                     console.error("Some analysis tasks failed:", failed);
-                    // Note: Individual processAnalysis calls handle their own error logging/db updates
-                    // but we might want to ensure the final status isn't "processing" if everything failed.
                 }
 
                 await updateProgress(caseId, 100, "Complete");

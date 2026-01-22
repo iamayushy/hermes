@@ -2,13 +2,10 @@
 
 import { db } from "@/db";
 import { proceduralOrders, proceduralEvents, proceduralTimelines } from "@/db/schema/procedural";
-import { count } from "drizzle-orm";
 import Anthropic from "@anthropic-ai/sdk";
 // @ts-ignore
 import PDFParser from "pdf2json";
 
-// Initialize Anthropic client
-// Ensure ANTHROPIC_API_KEY is set in .env
 const anthropic = new Anthropic({
     apiKey: process.env.ANTHROPIC_API_KEY,
 });
@@ -20,8 +17,7 @@ export async function processProceduralOrder(formData: FormData, orgId: string) 
             throw new Error("No file provided");
         }
 
-        // Enforce size limit (5MB) to avoid Next.js server action limits
-        const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+        const MAX_FILE_SIZE = 5 * 1024 * 1024;
         if (file.size > MAX_FILE_SIZE) {
             throw new Error(`File too large. Max size is ${MAX_FILE_SIZE / 1024 / 1024}MB`);
         }
@@ -29,9 +25,8 @@ export async function processProceduralOrder(formData: FormData, orgId: string) 
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
 
-        // 1. Extract Text from PDF using pdf2json
         const textContent = await new Promise<string>((resolve, reject) => {
-            const parser = new PDFParser(null, true); // true = text only
+            const parser = new PDFParser(null, true);
             parser.on("pdfParser_dataError", (errData: any) => reject(new Error(errData.parserError)));
             parser.on("pdfParser_dataReady", () => {
                 resolve(parser.getRawTextContent());
@@ -45,7 +40,7 @@ export async function processProceduralOrder(formData: FormData, orgId: string) 
             throw new Error("Could not extract text from PDF");
         }
 
-        // 2. Analyze with Claude 3.5 Sonnet
+
         const systemPrompt = `
       You are an expert legal assistant specializing in International Arbitration procedural orders.
       Your task is to extract structured data from a Procedural Order (PO) text.
@@ -86,7 +81,7 @@ export async function processProceduralOrder(formData: FormData, orgId: string) 
             messages: [
                 {
                     role: "user",
-                    content: `Here is the text of a Procedural Order. Extract the data as JSON:\n\n${textContent.slice(0, 100000)}` // Slice to avoid context limit if massive
+                    content: `Here is the text of a Procedural Order. Extract the data as JSON:\n\n${textContent.slice(0, 100000)}`
                 }
             ]
         });
@@ -96,23 +91,21 @@ export async function processProceduralOrder(formData: FormData, orgId: string) 
             throw new Error("Unexpected response from Claude");
         }
 
-        // Attempt to parse JSON from the response (it might have markdown blocks)
+
         const jsonString = responseContent.text.replace(/```json/g, "").replace(/```/g, "").trim();
         const structuredData = JSON.parse(jsonString);
 
-        // 3. Save to Database (neon-http doesn't support transactions)
-        // A. Insert Order
         const [insertedOrder] = await db.insert(proceduralOrders).values({
             orgId: orgId,
-            institution: "ICSID", // Hardcoded for this phase
+            institution: "ICSID",
             proceduralOrderNumber: structuredData.order_meta?.number || "Unknown Order",
             orderDate: structuredData.order_meta?.date ? new Date(structuredData.order_meta.date) : new Date(),
             rulesContext: structuredData.order_meta?.rules_context || [],
-            extractedJson: structuredData, // Store the full raw JSON for provenance
+            extractedJson: structuredData,
             caseType: "Arbitration"
         } as any).returning({ id: proceduralOrders.id });
 
-        // B. Insert Events
+
         if (structuredData.events && structuredData.events.length > 0) {
             await db.insert(proceduralEvents).values(
                 structuredData.events.map((e: any) => ({
@@ -126,7 +119,7 @@ export async function processProceduralOrder(formData: FormData, orgId: string) 
             );
         }
 
-        // C. Insert Timelines
+
         if (structuredData.timelines && structuredData.timelines.length > 0) {
             await db.insert(proceduralTimelines).values(
                 structuredData.timelines.map((t: any) => ({

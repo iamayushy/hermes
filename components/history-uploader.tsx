@@ -1,15 +1,12 @@
 "use client";
 
-import { useCallback, useState } from "react";
-import { useDropzone } from "react-dropzone"; // Note: might need to install this if not present, otherwise standard input
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { UploadCloud, CheckCircle, AlertCircle, FileText, Loader2 } from "lucide-react";
 import { processProceduralOrder } from "@/actions/ingest-history";
 import { useAuth } from "@clerk/nextjs";
 
-// We'll use a simple file input if dropzone isn't available, but let's try to assume we can implement flexible drag/drop logic or standard input
-// For now, standard input to avoid dev dependency hell if react-dropzone missing. But wait, I can use a standard hidden input styled as dropzone.
 
 export function HistoryUploader() {
     const { orgId } = useAuth();

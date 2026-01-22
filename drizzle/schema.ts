@@ -1,5 +1,4 @@
 import { pgTable, unique, uuid, text, boolean, jsonb, integer, foreignKey, timestamp } from "drizzle-orm/pg-core"
-import { sql } from "drizzle-orm"
 
 
 
@@ -34,10 +33,10 @@ export const proceduralEvents = pgTable("procedural_events", {
 	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
 }, (table) => [
 	foreignKey({
-			columns: [table.proceduralOrderId],
-			foreignColumns: [proceduralOrders.id],
-			name: "procedural_events_procedural_order_id_procedural_orders_id_fk"
-		}),
+		columns: [table.proceduralOrderId],
+		foreignColumns: [proceduralOrders.id],
+		name: "procedural_events_procedural_order_id_procedural_orders_id_fk"
+	}),
 ]);
 
 export const proceduralTimelines = pgTable("procedural_timelines", {
@@ -50,10 +49,10 @@ export const proceduralTimelines = pgTable("procedural_timelines", {
 	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
 }, (table) => [
 	foreignKey({
-			columns: [table.proceduralOrderId],
-			foreignColumns: [proceduralOrders.id],
-			name: "procedural_timelines_procedural_order_id_procedural_orders_id_f"
-		}),
+		columns: [table.proceduralOrderId],
+		foreignColumns: [proceduralOrders.id],
+		name: "procedural_timelines_procedural_order_id_procedural_orders_id_f"
+	}),
 ]);
 
 export const proceduralOrders = pgTable("procedural_orders", {

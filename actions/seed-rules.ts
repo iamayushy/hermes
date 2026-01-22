@@ -4,7 +4,6 @@ import { db } from "@/db"
 import { institutionRules } from "@/db/schema/schema"
 import convention from "@/data/convention.json"
 import rules from "@/data/arbitration-rules.json"
-import { eq, and } from "drizzle-orm"
 
 const INSTITUTION = "ICSID"
 const VERSION = "2022"

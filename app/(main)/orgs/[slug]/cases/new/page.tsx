@@ -1,7 +1,4 @@
 import { CaseAnalyzer } from "@/components/case-analyzer";
-import { Button } from "@/components/ui/button";
-import { ChevronLeft } from "lucide-react";
-import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 

@@ -18,35 +18,30 @@ export function DownloadPdfButton({ report }: { report: ReportData }) {
         setGenerating(true);
 
         try {
-            // 1. Target the source
             const sourceElement = document.getElementById("analysis-results-container");
             if (!sourceElement) {
                 throw new Error("Analysis content not found");
             }
 
-            // 2. Clone for capture
-            // We clone to ensure we capture the full scroll height without messing with the user's view
             const clone = sourceElement.cloneNode(true) as HTMLElement;
 
             // Set styles for consistent capture
             clone.style.position = "absolute";
             clone.style.top = "-9999px";
             clone.style.left = "-9999px";
-            clone.style.width = "1000px"; // Adjusted for A4
+            clone.style.width = "1000px";
             clone.style.height = "auto";
             clone.style.overflow = "visible";
             clone.style.backgroundColor = "#ffffff";
             clone.style.padding = "40px";
 
-            // Ensure all icons and text are visible
+
             document.body.appendChild(clone);
 
-            // Wait for rendering
+
             await new Promise(resolve => setTimeout(resolve, 200));
 
-            // POLYFILL: Robust Color Conversion using Browser DOM
-            // html2canvas doesn't support 'oklch'/'lab'. We use the browser's own computed style engine
-            // to convert these to 'rgb()' which html2canvas understands.
+
 
             const colorResolver = document.createElement('div');
             colorResolver.style.display = 'none';
@@ -65,8 +60,6 @@ export function DownloadPdfButton({ report }: { report: ReportData }) {
             const processStyleValue = (value: string): string => {
                 if (!value || value === 'none') return value;
 
-                // Replace any oklch() or lab() functions with their resolved RGB values
-                // This handles gradients, shadows, and multiple colors in one property
                 return value.replace(/(oklch|lab)\([^)]+\)/g, (match) => {
                     return resolveColor(match);
                 });
@@ -75,7 +68,7 @@ export function DownloadPdfButton({ report }: { report: ReportData }) {
             const convertToRgb = (element: HTMLElement) => {
                 const style = window.getComputedStyle(element);
 
-                // Properties that often contain colors
+
                 const colorProps = [
                     'color', 'background-color', 'border-color',
                     'border-top-color', 'border-bottom-color', 'border-left-color', 'border-right-color',
@@ -86,13 +79,13 @@ export function DownloadPdfButton({ report }: { report: ReportData }) {
                     const val = style.getPropertyValue(prop);
                     if (val && (val.includes('oklch') || val.includes('lab') || val.includes('var'))) {
                         const resolved = processStyleValue(val);
-                        // Use camelCase for style object access
+
                         const camelProp = prop.replace(/-([a-z])/g, g => g[1].toUpperCase());
                         (element.style as any)[camelProp] = resolved;
                     }
                 });
 
-                // Handle background-image separately for gradients
+
                 const bgImage = style.getPropertyValue('background-image');
                 if (bgImage && bgImage !== 'none' && (bgImage.includes('oklch') || bgImage.includes('lab'))) {
                     element.style.backgroundImage = processStyleValue(bgImage);
@@ -107,7 +100,7 @@ export function DownloadPdfButton({ report }: { report: ReportData }) {
                 document.body.removeChild(colorResolver);
             }
 
-            // 3. Use jspdf-html2canvas for multi-page PDF
+
             const timestamp = new Date().toISOString().split('T')[0];
             const saneTitle = report.title.replace(/[^a-z0-9]/gi, '_').substring(0, 50);
 
@@ -133,7 +126,7 @@ export function DownloadPdfButton({ report }: { report: ReportData }) {
                 }
             });
 
-            // Cleanup
+
             document.body.removeChild(clone);
 
         } catch (error) {

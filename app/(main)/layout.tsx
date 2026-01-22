@@ -6,7 +6,6 @@ import {
     UserButton,
     OrganizationSwitcher,
 } from "@clerk/nextjs";
-import { Badge } from "@/components/ui/badge";
 
 export default function MainLayout({
     children,

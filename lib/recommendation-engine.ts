@@ -8,20 +8,18 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
-// Simple in-memory cache (can be upgraded to Redis later)
 const rulesCache = new Map<string, { data: any[], timestamp: number }>();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL = 5 * 60 * 1000;
 
 interface CaseContext {
   text: string;
   orgId: string;
   analysisMode?: "default" | "with_parameters";
-  jurisdiction?: string; // Optional pre-provided jurisdiction to skip classification
+  jurisdiction?: string;
 }
 
 
 export async function matchRules(orgId: string, useCache = true) {
-  // Check cache first
   if (useCache) {
     const cached = rulesCache.get(orgId);
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
@@ -29,14 +27,13 @@ export async function matchRules(orgId: string, useCache = true) {
     }
   }
 
-  // Get all rules for the organization, prioritized by hierarchy
   const rules = await db
     .select()
     .from(institutionRules)
     .where(eq(institutionRules.orgId, orgId))
     .orderBy(institutionRules.hierarchyLevel);
 
-  // Update cache
+
   rulesCache.set(orgId, { data: rules, timestamp: Date.now() });
 
   return rules;
@@ -44,14 +41,12 @@ export async function matchRules(orgId: string, useCache = true) {
 
 
 
-// ... imports
-// (Note: We need to import the response type if we want to be strict, but for now we infer)
+
 
 export async function classifyDocument(
   text: string,
   options?: { providedJurisdiction?: string }
 ): Promise<{ is_icsid: boolean; jurisdiction: string; rationale: string }> {
-  // Skip AI call if jurisdiction provided
   if (options?.providedJurisdiction) {
     return {
       is_icsid: options.providedJurisdiction === "ICSID",
@@ -77,7 +72,6 @@ export async function classifyDocument(
 
   const content = msg.content[0].type === 'text' ? msg.content[0].text : "{}";
   try {
-    // Basic cleanup just in case
     const jsonStr = content.replace(/```json/g, '').replace(/```/g, '').trim();
     return JSON.parse(jsonStr);
   } catch (e) {
@@ -220,7 +214,6 @@ OUTPUT SCHEMA - PROCEDO ANALYSIS REPORT:
   };
 }
 
-// Build prompt WITH Procedo parameters for compliance scoring
 export function buildParameterizedPrompt(
   caseText: string,
   rules: any[],
@@ -361,7 +354,6 @@ OUTPUT SCHEMA (Parameterized Analysis):
 export async function generateRecommendations(caseContext: CaseContext) {
   const { text, orgId, analysisMode = "default", jurisdiction: providedJurisdiction } = caseContext;
 
-  // Parallelize classification and rules fetching for better performance
   const [classificationResult, rules] = await Promise.all([
     providedJurisdiction
       ? Promise.resolve({
@@ -376,12 +368,10 @@ export async function generateRecommendations(caseContext: CaseContext) {
   const jurisdiction = classificationResult.jurisdiction ||
     (classificationResult.is_icsid ? "ICSID" : "General Commercial");
 
-  // Build prompt based on analysis mode AND jurisdiction
   const { system, userMessage } = analysisMode === "with_parameters"
     ? buildParameterizedPrompt(text, rules, jurisdiction)
     : buildRecommendationPrompt(text, rules, jurisdiction);
 
-  // 4. Call Claude with streaming
   const stream = anthropic.messages.stream({
     model: "claude-sonnet-4-5",
     max_tokens: 8000,
