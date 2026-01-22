@@ -9,7 +9,7 @@ import { eq } from "drizzle-orm";
 import { after } from "next/server";
 
 export const runtime = "nodejs";
-export const maxDuration = 60 * 8; // Increased to 5 minutes to prevent timeouts
+export const maxDuration = 600; // Increased to 5 minutes to prevent timeouts
 
 async function updateProgress(caseId: string, progress: number, step: string) {
     await db.update(cases)
