@@ -1,6 +1,10 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Procedo: AI-Powered Procedural Intelligence for Arbitration
 
-## Getting Started
+**Procedo** is an AI-powered procedural intelligence platform designed to bring structure, compliance, and efficiency to international arbitration. It assists arbitrators and institutions by analyzing procedural documents (like Procedural Order No. 1 or Awards) against institutional rules and providing real-time compliance audits and strategic recommendations.
+
+---
+
+## 🚀 Getting Started
 
 First, run the development server:
 
@@ -16,21 +20,80 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🎯 Platform Objectives
+- **Standardization**: Reduce procedural divergence by benchmarking against institutional best practices.
+- **Risk Mitigation**: Identify "annulment traps" and mandatory rule violations early.
+- **Efficiency**: Suggest cost-effective and time-saving procedural choices (e.g., bifurcation, virtual hearings).
+- **Transparency**: Provide institutions with data-driven insights into arbitrator performance and procedural adherence.
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## ✨ Product Features
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### A. Document Intelligence & Ingestion
+- **Automated Extraction**: Using `pdf2json`, the system extracts raw text from uploaded legal documents.
+- **Jurisdiction Detection**: AI automatically classifies the document's jurisdiction (ICSID, UNCITRAL, ICC, etc.) to apply the correct regulatory framework.
+- **Status Tracking**: Real-time progress updates for users during complex AI analysis phases.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### B. The Analysis Engines (`lib/recommendation-engine.ts`)
+The engine uses a tiered processing approach to ensure high-fidelity legal analysis:
 
-## Deploy on Vercel
+#### 1. Pre-Processing & Classification
+- **Intelligent Classification**: Before analysis, the `classifyDocument` function uses LLM reasoning to determine the jurisdiction (ICSID, UNCITRAL, etc.) and rationale.
+- **Rule Matching & Caching**: The `matchRules` function retrieves relevant institutional rules from the database, utilizing a Time-To-Live (TTL) cache.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+#### 2. Dual-Mode Prompt Engineering
+The core logic switches between two primary prompt builders:
+- **Strategic Focus (`buildRecommendationPrompt`)**: Focuses on "The Tribunal may consider..." style advice.
+- **Audit Focus (`buildParameterizedPrompt`)**: Uses the `procedo-parameters.json` framework to act as a "Guardian of the Rules" for strict compliance checks.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+#### 3. Structured Output & Streaming
+- **JSON Enforcement**: Both engines strictly enforce JSON-only outputs for reliable frontend rendering.
+- **Real-time Streaming**: Leveraging Anthropic’s streaming capabilities to show live progress.
+
+---
+
+## 🛠 Technical Architecture
+
+### Tech Stack
+- **Framework**: [Next.js 16 (App Router)](https://nextjs.org)
+- **AI Engine**: [Anthropic Claude 4.5 Sonnet](https://anthropic.com)
+- **Database**: PostgreSQL via [Neon](https://neon.tech)
+- **ORM**: [Drizzle ORM](https://orm.drizzle.team)
+- **Authentication**: [Clerk](https://clerk.com)
+- **File Storage**: [Vercel Blob](https://vercel.com/storage/blob)
+
+### Data Workflow
+1. **Upload**: User uploads a PDF via the Dashboard.
+2. **Extraction**: Background job extracts text from the PDF.
+3. **Classification**: AI determines the Jurisdiction & Rationale.
+4. **Analysis**: 
+    - Retrieve institutional rules via `matchRules`.
+    - Trigger `generateRecommendations` with selected mode.
+5. **Storage**: Final reports (JSONB) are stored in the database.
+6. **Display**: UI renders structured cards, checklists, and risk flags.
+
+---
+
+## 📊 Data Model Overview
+
+| Entity | Description | Key Fields |
+| :--- | :--- | :--- |
+| **Cases** | Root record for an analysis request | `status`, `analysis_progress`, `recommendations` |
+| **Institution Rules** | Library of regulatory rules | `ref`, `mandatory`, `hierarchy_level` |
+| **Procedural Orders** | Extracted data from documents | `po_number`, `order_date`, `extracted_json` |
+
+---
+
+## 🔮 Future Scope
+- **Semantic Search**: RAG over historical case law and past procedural orders.
+- **Drafting Assistant**: AI-powered drafting of procedural orders.
+- **Collaborative Review**: Annotation tools for institutional secretariats.
+- **Timeline Benchmarking**: Comparing current case speed against institutional averages.
+
+---
+
+> [!IMPORTANT]
+> **Product Note**: Procedo is designed as a **non-binding** assistant. It augments human discretion and does not replace the legal authority of the Tribunal or the Secretariat.
