@@ -11,6 +11,7 @@ import { useParams } from "next/navigation";
 import { RecommendationDisplay } from "./recommendation-display";
 import { ParameterizedDisplay } from "./parameterized-display";
 import { DownloadPdfButton } from "./download-pdf-button";
+import { AnalysisSkeleton } from "./analysis-skeleton";
 
 interface AnalysisStatus {
     id: string;
@@ -29,6 +30,8 @@ export function CaseAnalyzer() {
     const params = useParams();
     const [file, setFile] = useState<File | null>(null);
     const [isStarting, setIsStarting] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
+    const [uploadSuccess, setUploadSuccess] = useState(false);
     const [activeTab, setActiveTab] = useState<"default" | "with_parameters">("default");
 
     // Analysis state management
@@ -53,6 +56,10 @@ export function CaseAnalyzer() {
             setParamJobId(null);
             setDefaultStatus(null);
             setParamStatus(null);
+
+            // Show optimistic upload success
+            setUploadSuccess(true);
+            setTimeout(() => setUploadSuccess(false), 2000);
         }
     };
 
@@ -106,6 +113,7 @@ export function CaseAnalyzer() {
         if (!file || !orgId) return;
 
         setIsStarting(true);
+        setIsUploading(true);
         setError("");
         setDefaultStatus(null);
         setParamStatus(null);
@@ -118,6 +126,8 @@ export function CaseAnalyzer() {
                 access: 'public',
                 handleUploadUrl: '/api/upload',
             });
+
+            setIsUploading(false);
 
             // Step 2: Call combined analysis API with file URL
             const response = await fetch("/api/analyze-case", {
@@ -138,14 +148,14 @@ export function CaseAnalyzer() {
             const result = await response.json();
             const caseId = result.caseId;
 
-            // Set initial status for both analyses
+            // Set initial status for both analyses with optimistic updates
             setDefaultJobId(caseId);
             setParamJobId(caseId);
             setDefaultStatus({
                 id: caseId,
                 status: 'processing',
-                analysisProgress: 5,
-                currentStep: 'Starting combined analysis...',
+                analysisProgress: 10,
+                currentStep: 'Extracting text from PDF...',
                 defaultRecommendations: null,
                 parameterizedRecommendations: null,
                 errorMessage: null
@@ -153,8 +163,8 @@ export function CaseAnalyzer() {
             setParamStatus({
                 id: caseId,
                 status: 'processing',
-                analysisProgress: 5,
-                currentStep: 'Waiting...',
+                analysisProgress: 10,
+                currentStep: 'Queued for analysis...',
                 defaultRecommendations: null,
                 parameterizedRecommendations: null,
                 errorMessage: null
@@ -166,6 +176,7 @@ export function CaseAnalyzer() {
                 errorMessage = errorMessage.substring(7);
             }
             setError(errorMessage);
+            setIsUploading(false);
         } finally {
             setIsStarting(false);
         }
@@ -204,7 +215,10 @@ export function CaseAnalyzer() {
                 </div>
 
                 {/* Upload Zone */}
-                <div className="border-2 border-dashed border-muted-foreground/20 rounded-xl p-6 flex flex-col items-center justify-center text-center hover:bg-muted/50 transition-colors relative bg-card/50">
+                <div className={`border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center text-center transition-all relative ${uploadSuccess
+                    ? 'border-green-500 bg-green-50 dark:bg-green-950/20'
+                    : 'border-muted-foreground/20 hover:bg-muted/50 bg-card/50'
+                    }`}>
                     <input
                         type="file"
                         accept=".pdf"
@@ -212,8 +226,13 @@ export function CaseAnalyzer() {
                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                         disabled={isProcessing || isStarting}
                     />
-                    <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center mb-3">
-                        <UploadCloud className="h-5 w-5 text-muted-foreground" />
+                    <div className={`h-10 w-10 rounded-full flex items-center justify-center mb-3 transition-colors ${uploadSuccess ? 'bg-green-100 dark:bg-green-900/30' : 'bg-muted'
+                        }`}>
+                        {uploadSuccess ? (
+                            <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+                        ) : (
+                            <UploadCloud className="h-5 w-5 text-muted-foreground" />
+                        )}
                     </div>
                     {file ? (
                         <>
@@ -221,6 +240,11 @@ export function CaseAnalyzer() {
                             <p className="text-xs text-muted-foreground mt-1">
                                 {(file.size / 1024 / 1024).toFixed(2)} MB
                             </p>
+                            {uploadSuccess && (
+                                <p className="text-xs text-green-600 dark:text-green-400 mt-2 font-medium">
+                                    ✓ Ready to analyze
+                                </p>
+                            )}
                         </>
                     ) : (
                         <>
@@ -238,10 +262,15 @@ export function CaseAnalyzer() {
                         size="lg"
                         disabled={isStarting}
                     >
-                        {isStarting ? (
+                        {isUploading ? (
                             <>
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Starting...
+                                Uploading...
+                            </>
+                        ) : isStarting ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Starting Analysis...
                             </>
                         ) : (
                             <>
@@ -396,15 +425,16 @@ export function CaseAnalyzer() {
                         )}
 
                         {isProcessing && !defaultData && !paramData && (
-                            <div className="flex flex-col items-center justify-center h-[60vh] text-center">
-                                <div className="h-16 w-16 relative mb-6">
-                                    <div className="absolute inset-0 border-4 border-muted rounded-full"></div>
-                                    <div className="absolute inset-0 border-4 border-primary rounded-full border-t-transparent animate-spin"></div>
+                            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                <div className="mb-6 text-center">
+                                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full mb-4">
+                                        <div className="h-2 w-2 bg-primary rounded-full animate-pulse"></div>
+                                        <span className="text-sm font-medium text-primary">
+                                            AI is analyzing your document...
+                                        </span>
+                                    </div>
                                 </div>
-                                <h3 className="text-xl font-semibold text-foreground mb-2">Processing Document</h3>
-                                <p className="text-muted-foreground">
-                                    Our AI is analyzing the document against ICSID rules...
-                                </p>
+                                <AnalysisSkeleton />
                             </div>
                         )}
 

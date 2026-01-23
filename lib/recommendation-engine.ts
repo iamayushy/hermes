@@ -65,7 +65,7 @@ export async function classifyDocument(
 
   const msg = await anthropic.messages.create({
     model: "claude-sonnet-4-5",
-    max_tokens: 8000,
+    max_tokens: 4096,
     system: system,
     messages: [{ role: "user", content: `DOCUMENT START:\n${text.slice(0, 10000)}\nDOCUMENT END` }]
   });

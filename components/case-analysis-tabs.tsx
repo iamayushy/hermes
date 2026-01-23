@@ -161,12 +161,14 @@ export function CaseAnalysisTabs({
                             </div>
                         </CardHeader>
                         <CardContent className="flex-1 overflow-y-auto">
-                            {activeTab === "default" && hasDefault && (
-                                <RecommendationDisplay data={JSON.stringify(defaultData)} />
-                            )}
-                            {activeTab === "parameterized" && hasParameterized && (
-                                <ParameterizedDisplay data={JSON.stringify(paramData)} />
-                            )}
+                            <div id="analysis-results-container">
+                                {activeTab === "default" && hasDefault && (
+                                    <RecommendationDisplay data={JSON.stringify(defaultData)} />
+                                )}
+                                {activeTab === "parameterized" && hasParameterized && (
+                                    <ParameterizedDisplay data={JSON.stringify(paramData)} />
+                                )}
+                            </div>
                         </CardContent>
                     </Card>
                 )}
@@ -263,13 +265,15 @@ export function CaseAnalysisTabs({
             </CardHeader>
 
             <CardContent className="flex-1 overflow-y-auto min-h-0">
-                {activeTab === "default" && hasDefault && (
-                    <RecommendationDisplay data={JSON.stringify(defaultData)} />
-                )}
+                <div id="analysis-results-container">
+                    {activeTab === "default" && hasDefault && (
+                        <RecommendationDisplay data={JSON.stringify(defaultData)} />
+                    )}
 
-                {activeTab === "parameterized" && hasParameterized && (
-                    <ParameterizedDisplay data={JSON.stringify(paramData)} />
-                )}
+                    {activeTab === "parameterized" && hasParameterized && (
+                        <ParameterizedDisplay data={JSON.stringify(paramData)} />
+                    )}
+                </div>
             </CardContent>
         </Card>
     );
