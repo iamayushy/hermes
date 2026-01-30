@@ -221,11 +221,9 @@ export function RecommendationDisplay({ data }: { data: string }) {
                     <CardHeader className="pb-3">
                         <CardTitle className="flex items-center gap-2 text-xl text-primary">
                             <Lightbulb className="h-6 w-6" />
-                            Procedo Recommends
+                            Key procedural recommendations based on ICSID rules & Case Analysis
                         </CardTitle>
-                        <CardDescription>
-                            Key procedural recommendations based on ICSID rules and case analysis
-                        </CardDescription>
+                        
                     </CardHeader>
                     <CardContent className="space-y-4">
                         {procedo_recommends.primary_recommendations.map((rec, i) => (

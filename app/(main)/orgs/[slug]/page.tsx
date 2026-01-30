@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { auth, currentUser  } from "@clerk/nextjs/server";
 import { OrganizationList } from "@clerk/nextjs";
 import { DashboardView } from "@/components/dashboard-view";
 import { db } from "@/db";
@@ -11,6 +11,8 @@ export default async function Page({
     params: Promise<{ slug: string }>;
 }) {
     const { orgSlug, orgId } = await auth();
+    const data = await currentUser()
+    const name = data?.firstName;
     const { slug } = await params;
 
     if (slug !== orgSlug) {
@@ -96,6 +98,7 @@ export default async function Page({
             organizationName={slug}
             recentCases={recentCases}
             stats={stats}
+            userName={name as string}
         />
     );
 }

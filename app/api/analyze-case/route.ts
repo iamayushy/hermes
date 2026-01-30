@@ -44,65 +44,19 @@ async function processAnalysis(
     try {
         await updateProgress(caseId, 20, "Starting AI analysis...");
 
-        const stream = await generateRecommendations({
+        // generateRecommendations now returns structured data directly via tool calling
+        const parsedRecommendations = await generateRecommendations({
             text,
             orgId,
             analysisMode,
             jurisdiction
         });
-        let fullRecommendations = "";
-
-        await updateProgress(caseId, 40, "AI is analyzing document...");
-
-        for await (const chunk of stream) {
-            if (chunk.type === "content_block_delta" && chunk.delta?.type === "text_delta") {
-                fullRecommendations += chunk.delta.text;
-            }
-        }
 
         await updateProgress(caseId, 80, "Saving results...");
 
-        // More robust JSON extraction
-        let cleanedData = fullRecommendations.trim()
-            .replace(/^```json\s*/i, '')
-            .replace(/^```\s*/i, '')
-            .replace(/\s*```$/i, '')
-            .trim();
-
-        // Extract JSON from anywhere in the response
-        if (!cleanedData.startsWith('{')) {
-            const jsonStart = cleanedData.indexOf('{');
-            const jsonEnd = cleanedData.lastIndexOf('}');
-            if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
-                cleanedData = cleanedData.substring(jsonStart, jsonEnd + 1);
-            }
-        }
-
-        // Validate that we have a complete JSON object
-        if (!cleanedData.startsWith('{') || !cleanedData.endsWith('}')) {
-            console.error("Invalid JSON structure detected. Response preview:", fullRecommendations.substring(0, 500));
-        }
-
-        let parsedRecommendations;
-        try {
-            parsedRecommendations = JSON.parse(cleanedData);
-
-            // Validate that we got a proper analysis object
-            if (parsedRecommendations.error === "invalid_document") {
-                console.warn("AI detected invalid document for case:", caseId);
-            }
-        } catch (parseError) {
-            console.error("JSON parse error for case:", caseId);
-            console.error("Parse error details:", parseError instanceof Error ? parseError.message : parseError);
-            console.error("Raw response (first 1000 chars):", fullRecommendations.substring(0, 1000));
-            console.error("Cleaned data (first 1000 chars):", cleanedData.substring(0, 1000));
-
-            parsedRecommendations = {
-                raw_response: fullRecommendations.substring(0, 10000),
-                error: "parse_failed",
-                message: "The AI analysis completed but the response was not in the expected format. Below is the raw output.",
-                parse_error: parseError instanceof Error ? parseError.message : "Unknown parse error"
-            };
+        // Check if AI detected invalid document
+        if ((parsedRecommendations as any).error === "invalid_document") {
+            console.warn("AI detected invalid document for case:", caseId);
         }
 
         if (analysisMode === "with_parameters") {

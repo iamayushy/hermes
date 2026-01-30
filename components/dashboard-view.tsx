@@ -43,7 +43,8 @@ interface DashboardStats {
 export function DashboardView({
     organizationName,
     recentCases,
-    stats
+    stats,
+    userName
 }: {
     organizationName?: string;
     recentCases?: Array<{
@@ -55,6 +56,7 @@ export function DashboardView({
         parameterizedRecommendations?: unknown;
     }>;
     stats?: DashboardStats;
+    userName?: string;
 }) {
     const { isLoaded, userId, orgId } = useAuth();
 
@@ -107,7 +109,7 @@ export function DashboardView({
                 <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-8">
                     <div>
                         <h1 className="text-3xl font-bold tracking-tight bg-linear-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">
-                            {organizationName || "Procedo"} Dashboard
+                            Hi, {userName}
                         </h1>
                         <p className="text-muted-foreground mt-1">
                             AI-powered procedural compliance for ICSID arbitration

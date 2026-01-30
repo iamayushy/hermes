@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { institutionRules } from "@/db/schema/schema";
 import { eq } from "drizzle-orm";
 import Anthropic from "@anthropic-ai/sdk";
+import type { Tool } from "@anthropic-ai/sdk/resources/messages.mjs";
 import procedoParameters from "@/data/procedo-parameters.json";
 
 const anthropic = new Anthropic({
@@ -10,6 +11,323 @@ const anthropic = new Anthropic({
 
 const rulesCache = new Map<string, { data: any[], timestamp: number }>();
 const CACHE_TTL = 5 * 60 * 1000;
+
+// Tool schema for default/consultative analysis mode
+const PROCEDO_ANALYSIS_TOOL = {
+  name: "procedo_analysis",
+  description: "Provides strategic procedural recommendations and risk analysis for arbitration cases",
+  input_schema: {
+    type: "object",
+    properties: {
+      case_summary: {
+        type: "string",
+        description: "Concise summary focusing on procedural status with jurisdiction context"
+      },
+      document_type: {
+        type: "string",
+        enum: ["Procedural Order", "Memorial", "Submission", "Award", "Other"],
+        description: "Type of the analyzed document"
+      },
+      procedo_recommends: {
+        type: "object",
+        properties: {
+          primary_recommendations: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                title: { type: "string", description: "Short actionable title" },
+                recommendation: { type: "string", description: "Direct instruction for the tribunal" },
+                rationale: { type: "string", description: "Logical chain: Fact + Rule = Necessity" },
+                priority: { type: "string", enum: ["critical", "high", "medium"] },
+                rule_reference: { type: "string", description: "Specific rule citation" }
+              },
+              required: ["title", "recommendation", "rationale", "priority", "rule_reference"]
+            }
+          },
+          procedural_checklist: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                item: { type: "string", description: "Specific procedural action item" },
+                status: { type: "string", enum: ["missing_critical", "required", "recommended"] },
+                deadline_guidance: { type: "string", description: "Timeline based on benchmarks" },
+                risk_if_ignored: { type: "string", description: "Consequence if missed" }
+              },
+              required: ["item", "status", "deadline_guidance", "risk_if_ignored"]
+            }
+          }
+        },
+        required: ["primary_recommendations", "procedural_checklist"]
+      },
+      recommendations: {
+        type: "object",
+        properties: {
+          language: {
+            type: "object",
+            properties: {
+              recommendation: { type: "string", enum: ["English", "French", "Spanish", "Bilingual"] },
+              reasoning: { type: "string" },
+              rule_ref: { type: "string" },
+              confidence: { type: "string", enum: ["high", "medium", "low"] }
+            },
+            required: ["recommendation", "reasoning", "rule_ref", "confidence"]
+          },
+          timeline: {
+            type: "object",
+            properties: {
+              phases: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    name: { type: "string" },
+                    suggested_days: { type: "number" },
+                    reasoning: { type: "string" },
+                    benchmark: { type: "string" }
+                  },
+                  required: ["name", "suggested_days", "reasoning", "benchmark"]
+                }
+              },
+              rule_ref: { type: "string" }
+            },
+            required: ["phases", "rule_ref"]
+          },
+          bifurcation: {
+            type: "object",
+            properties: {
+              recommendation: { type: "string", enum: ["grant", "deny", "defer"] },
+              reasoning: { type: "string" },
+              historical_context: { type: "string" },
+              rule_ref: { type: "string" },
+              discretionary: { type: "boolean" }
+            },
+            required: ["recommendation", "reasoning", "historical_context", "rule_ref", "discretionary"]
+          },
+          document_production: {
+            type: "object",
+            properties: {
+              recommendation: { type: "string", enum: ["Redfern", "IBA", "None"] },
+              reasoning: { type: "string" },
+              rule_ref: { type: "string" }
+            },
+            required: ["recommendation", "reasoning", "rule_ref"]
+          },
+          hearing_format: {
+            type: "object",
+            properties: {
+              recommendation: { type: "string", enum: ["in-person", "virtual", "hybrid"] },
+              reasoning: { type: "string" },
+              rule_ref: { type: "string" }
+            },
+            required: ["recommendation", "reasoning", "rule_ref"]
+          },
+          evidence_management: {
+            type: "object",
+            properties: {
+              recommendations: { type: "array", items: { type: "string" } },
+              rule_ref: { type: "string" }
+            },
+            required: ["recommendations", "rule_ref"]
+          }
+        },
+        required: ["language", "timeline", "bifurcation", "document_production", "hearing_format", "evidence_management"]
+      },
+      efficiency_suggestions: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            type: { type: "string", enum: ["cost_reduction", "time_saving", "procedural_efficiency"] },
+            suggestion: { type: "string" },
+            rationale: { type: "string" },
+            potential_impact: { type: "string", enum: ["high", "medium", "low"] },
+            estimated_savings: { type: "string" }
+          },
+          required: ["type", "suggestion", "rationale", "potential_impact", "estimated_savings"]
+        }
+      },
+      critical_flags: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            issue: { type: "string" },
+            severity: { type: "string", enum: ["critical", "high", "medium"] },
+            rule_ref: { type: "string" },
+            annulment_risk: { type: "boolean" },
+            immediate_action: { type: "string" }
+          },
+          required: ["issue", "severity", "rule_ref", "annulment_risk", "immediate_action"]
+        }
+      }
+    },
+    required: ["case_summary", "document_type", "procedo_recommends", "recommendations", "efficiency_suggestions", "critical_flags"]
+  }
+} satisfies Tool;
+
+// Tool schema for compliance audit/parameterized mode
+const PROCEDO_COMPLIANCE_AUDIT_TOOL = {
+  name: "procedo_compliance_audit",
+  description: "Conducts comprehensive compliance audit with scoring and optimization analysis",
+  input_schema: {
+    type: "object",
+    properties: {
+      case_summary: {
+        type: "string",
+        description: "Brief 2-3 sentence summary with jurisdiction context"
+      },
+      document_type: {
+        type: "string",
+        enum: ["PO No. 1", "Award", "Memorial", "Submission", "Other"],
+        description: "Type of the analyzed document"
+      },
+      compliance_score: {
+        type: "object",
+        properties: {
+          overall: { type: "string", enum: ["fully_compliant", "partially_compliant", "non_compliant"] },
+          score_percentage: { type: "number", minimum: 0, maximum: 100 },
+          summary: { type: "string", description: "High-level audit summary" }
+        },
+        required: ["overall", "score_percentage", "summary"]
+      },
+      mandatory_compliance: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            provision_ref: { type: "string" },
+            provision_name: { type: "string" },
+            status: { type: "string", enum: ["compliant", "non_compliant", "not_applicable"] },
+            finding: { type: "string" },
+            action_required: { type: "string" },
+            annulment_risk: { type: "boolean" }
+          },
+          required: ["provision_ref", "provision_name", "status", "finding", "action_required", "annulment_risk"]
+        }
+      },
+      optimization_opportunities: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            provision_ref: { type: "string" },
+            provision_name: { type: "string" },
+            current_approach: { type: "string" },
+            suggested_optimization: { type: "string" },
+            potential_impact: { type: "string", enum: ["critical", "high", "medium"] },
+            estimated_savings: { type: "string" },
+            ai_role: { type: "string", enum: ["optimization", "historical_analysis", "timeline_optimization"] }
+          },
+          required: ["provision_ref", "provision_name", "current_approach", "suggested_optimization", "potential_impact", "estimated_savings", "ai_role"]
+        }
+      },
+      recommendations: {
+        type: "object",
+        properties: {
+          language: {
+            type: "object",
+            properties: {
+              recommendation: { type: "string", enum: ["English", "French", "Spanish", "Bilingual"] },
+              reasoning: { type: "string" },
+              rule_ref: { type: "string" },
+              confidence: { type: "string", enum: ["high", "medium", "low"] }
+            },
+            required: ["recommendation", "reasoning", "rule_ref", "confidence"]
+          },
+          timeline: {
+            type: "object",
+            properties: {
+              phases: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    name: { type: "string" },
+                    suggested_days: { type: "number" },
+                    reasoning: { type: "string" },
+                    benchmark: { type: "string" }
+                  },
+                  required: ["name", "suggested_days", "reasoning", "benchmark"]
+                }
+              },
+              rule_ref: { type: "string" }
+            },
+            required: ["phases", "rule_ref"]
+          },
+          bifurcation: {
+            type: "object",
+            properties: {
+              recommendation: { type: "string", enum: ["grant", "deny", "defer"] },
+              reasoning: { type: "string" },
+              historical_context: { type: "string" },
+              rule_ref: { type: "string" },
+              discretionary: { type: "boolean" }
+            },
+            required: ["recommendation", "reasoning", "historical_context", "rule_ref", "discretionary"]
+          },
+          document_production: {
+            type: "object",
+            properties: {
+              recommendation: { type: "string", enum: ["Redfern", "IBA", "None"] },
+              reasoning: { type: "string" },
+              rule_ref: { type: "string" }
+            },
+            required: ["recommendation", "reasoning", "rule_ref"]
+          },
+          hearing_format: {
+            type: "object",
+            properties: {
+              recommendation: { type: "string", enum: ["in-person", "virtual", "hybrid"] },
+              reasoning: { type: "string" },
+              rule_ref: { type: "string" }
+            },
+            required: ["recommendation", "reasoning", "rule_ref"]
+          },
+          evidence_management: {
+            type: "object",
+            properties: {
+              recommendations: { type: "array", items: { type: "string" } },
+              rule_ref: { type: "string" }
+            },
+            required: ["recommendations", "rule_ref"]
+          }
+        },
+        required: ["language", "timeline", "bifurcation", "document_production", "hearing_format", "evidence_management"]
+      },
+      efficiency_suggestions: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            type: { type: "string", enum: ["language_optimization", "cost_reduction", "time_saving", "procedural_efficiency"] },
+            suggestion: { type: "string" },
+            rationale: { type: "string" },
+            potential_impact: { type: "string", enum: ["high", "medium", "low"] },
+            estimated_savings: { type: "string" }
+          },
+          required: ["type", "suggestion", "rationale", "potential_impact", "estimated_savings"]
+        }
+      },
+      critical_flags: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            issue: { type: "string" },
+            severity: { type: "string", enum: ["critical", "high", "medium"] },
+            rule_ref: { type: "string" },
+            annulment_risk: { type: "boolean" },
+            immediate_action: { type: "string" }
+          },
+          required: ["issue", "severity", "rule_ref", "annulment_risk", "immediate_action"]
+        }
+      }
+    },
+    required: ["case_summary", "document_type", "compliance_score", "mandatory_compliance", "optimization_opportunities", "recommendations", "efficiency_suggestions", "critical_flags"]
+  }
+};
 
 interface CaseContext {
   text: string;
@@ -87,7 +405,10 @@ export function buildRecommendationPrompt(
 ) {
   const isIcsid = jurisdiction === "ICSID";
 
-  const systemPrompt = `You are Procedo, an expert ${isIcsid ? "Senior ICSID Counsel" : "International Arbitration Procedural Advisor"}. Your role is to strictly analyze case documents and provide ACTIONABLE, LOGICALLY REASONED PROCEDURAL RECOMMENDATIONS.
+  const systemPrompt = `You are Procedo, an expert ${isIcsid ? "Senior ICSID Counsel" : "International Arbitration Procedural Advisor"}. Your role is to analyze case documents and provide ACTIONABLE, LOGICALLY REASONED PROCEDURAL RECOMMENDATIONS.
+
+ANALYSIS MODE: CONSULTATIVE (Default)
+Focus on strategic recommendations and procedural best practices.
 
 ROLE & MINDSET:
 - **Mandatory Rules ("Compliance")**: Be STRICT. If a rule is violated, state it clearly.
@@ -126,7 +447,7 @@ ${JSON.stringify(
     2
   )}
 
-OUTPUT SCHEMA - PROCEDO ANALYSIS REPORT:
+OUTPUT SCHEMA (Unified Format):
 {
   "case_summary": "Concise summary focusing on procedural status (Jurisdiction: ${jurisdiction})",
   "document_type": "Procedural Order | Memorial | Submission | Award | Other",
@@ -177,7 +498,7 @@ OUTPUT SCHEMA - PROCEDO ANALYSIS REPORT:
       "discretionary": true
     },
     "document_production": {
-      "recommendation": "Redfern | IPO | None",
+      "recommendation": "Redfern | IBA | None",
       "reasoning": "Strictly limit to material/relevant to avoid 'fishing expeditions'",
       "rule_ref": "Arbitration Rule / IBA Rules"
     },
@@ -189,26 +510,39 @@ OUTPUT SCHEMA - PROCEDO ANALYSIS REPORT:
     "evidence_management": {
       "recommendations": ["Strict deadlines", "Format requirements"],
       "rule_ref": "Arbitration Rule / IBA Rules"
-    },
-    "efficiency_suggestions": [
-      {
-        "type": "cost_reduction | time_saving | procedural_efficiency",
-        "suggestion": "Specific, non-obvious suggestion",
-        "rationale": "Logical efficiency gain description",
-        "potential_impact": "high | medium | low",
-        "estimated_savings": "Time or cost estimate"
-      }
-    ],
-    "mandatory_flags": [
-      {
-        "issue": "Critical compliance issue",
-        "severity": "critical | high | medium",
-        "rule_ref": "Convention Article / Rule",
-        "annulment_risk": true,
-        "immediate_action": "Strict corrective action required"
-      }
-    ]
-  }
+    }
+  },
+  
+  "efficiency_suggestions": [
+    {
+      "type": "cost_reduction | time_saving | procedural_efficiency",
+      "suggestion": "Specific, non-obvious suggestion",
+      "rationale": "Logical efficiency gain description",
+      "potential_impact": "high | medium | low",
+      "estimated_savings": "Time or cost estimate"
+    }
+  ],
+  
+  "critical_flags": [
+    {
+      "issue": "Description of critical issue",
+      "severity": "critical | high | medium",
+      "rule_ref": "Reference",
+      "annulment_risk": true | false,
+      "immediate_action": "Strict corrective action required"
+    }
+  ]
+}
+
+CRITICAL FLAGS DETECTION (Systematic Detection Framework):
+You must systematically scan for the following categories of critical issues:
+${JSON.stringify(procedoParameters.critical_flags_categories, null, 2)}
+
+For each category:
+1. Apply the detection_criteria to identify if the issue exists in the document
+2. Use the severity_default as a baseline (adjust based on actual severity)
+3. Reference the examples to understand what types of issues to look for
+4. Set annulment_risk based on whether the issue could lead to annulment under applicable rules
 }`;
 
   return {
@@ -224,7 +558,16 @@ export function buildParameterizedPrompt(
 ) {
   const isIcsid = jurisdiction === "ICSID";
 
-  const systemPrompt = `You are an expert ${isIcsid ? "ICSID Institutional Counsel" : "International Arbitration Auditor"} with access to Procedo's institutional parameters. Your goal is to strictly audit the case document for compliance, optimization, and logical consistency.
+  const systemPrompt = `You are Procedo, an expert ${isIcsid ? "ICSID Institutional Counsel" : "International Arbitration Auditor"} with access to institutional parameters. Your role is to conduct a comprehensive compliance audit and identify optimization opportunities.
+
+ANALYSIS MODE: COMPLIANCE AUDIT (Parameterized)
+Focus on strict rule compliance, scoring, and systematic optimization analysis.
+
+ROLE & MINDSET:
+- **Mandatory Provisions**: Act as a 'Guardian of the Rules'. Flag ANY deviation with severity assessment.
+- **Optimizable Provisions**: Identify concrete improvements that save time/cost without compromising due process.
+- **Systematic Scoring**: Provide quantitative compliance metrics for institutional oversight.
+- **Logical Reasoning**: Every finding must follow: [Observation] -> [Rule/Principle] -> [Compliance Status] -> [Action Required].
 
 CRITICAL: OUTPUT FORMAT REQUIREMENTS
 - You MUST output ONLY valid JSON. No markdown, no explanations, no headers, no preamble.
@@ -269,15 +612,17 @@ COMPLIANCE SCORING:
 Score the document using these levels:
 ${JSON.stringify(procedoParameters.compliance_scoring, null, 2)}
 
-OUTPUT SCHEMA (Parameterized Analysis):
+OUTPUT SCHEMA (Unified Format - Compliance Mode):
 {
   "case_summary": "Brief 2-3 sentence summary (Jurisdiction: ${jurisdiction})",
   "document_type": "PO No. 1 | Award | Memorial | Submission | Other",
+  
   "compliance_score": {
     "overall": "fully_compliant | partially_compliant | non_compliant",
     "score_percentage": 85,
     "summary": "High-level audit summary focusing on key risks"
   },
+  
   "mandatory_compliance": [
     {
       "provision_ref": "Arbitration Rule X",
@@ -288,6 +633,7 @@ OUTPUT SCHEMA (Parameterized Analysis):
       "annulment_risk": true | false
     }
   ],
+  
   "optimization_opportunities": [
     {
       "provision_ref": "Arbitration Rule X",
@@ -299,6 +645,7 @@ OUTPUT SCHEMA (Parameterized Analysis):
       "ai_role": "optimization | historical_analysis | timeline_optimization"
     }
   ],
+  
   "recommendations": {
     "language": {
       "recommendation": "English | French | Spanish | Bilingual",
@@ -324,12 +671,22 @@ OUTPUT SCHEMA (Parameterized Analysis):
       "rule_ref": "Arbitration Rule",
       "discretionary": true
     },
+    "document_production": {
+      "recommendation": "Redfern | IBA | None",
+      "reasoning": "Strictly limit to material/relevant to avoid 'fishing expeditions'",
+      "rule_ref": "Arbitration Rule / IBA Rules"
+    },
     "hearing_format": {
       "recommendation": "in-person | virtual | hybrid",
       "reasoning": "Logistics vs Due Process",
       "rule_ref": "Arbitration Rule"
+    },
+    "evidence_management": {
+      "recommendations": ["Strict deadlines", "Format requirements"],
+      "rule_ref": "Arbitration Rule / IBA Rules"
     }
   },
+  
   "efficiency_suggestions": [
     {
       "type": "language_optimization | cost_reduction | time_saving | procedural_efficiency",
@@ -339,6 +696,7 @@ OUTPUT SCHEMA (Parameterized Analysis):
       "estimated_savings": "Time or cost estimate"
     }
   ],
+  
   "critical_flags": [
     {
       "issue": "Description of critical issue",
@@ -348,7 +706,17 @@ OUTPUT SCHEMA (Parameterized Analysis):
       "immediate_action": "Strict corrective action required"
     }
   ]
-}`;
+}
+
+CRITICAL FLAGS DETECTION (Systematic Detection Framework):
+You must systematically scan for the following categories of critical issues:
+${JSON.stringify(procedoParameters.critical_flags_categories, null, 2)}
+
+For each category:
+1. Apply the detection_criteria to identify if the issue exists in the document
+2. Use the severity_default as a baseline (adjust based on actual severity)
+3. Reference the examples to understand what types of issues to look for
+4. Set annulment_risk based on whether the issue could lead to annulment under applicable rules`;
 
   return {
     system: systemPrompt,
@@ -377,13 +745,29 @@ export async function generateRecommendations(caseContext: CaseContext) {
     ? buildParameterizedPrompt(text, rules, jurisdiction)
     : buildRecommendationPrompt(text, rules, jurisdiction);
 
-  const stream = anthropic.messages.stream({
+  // Select the appropriate tool based on analysis mode
+  const tool = analysisMode === "with_parameters"
+    ? PROCEDO_COMPLIANCE_AUDIT_TOOL
+    : PROCEDO_ANALYSIS_TOOL;
+
+  // Use tool calling for structured output
+  const message = await anthropic.messages.create({
     model: "claude-sonnet-4-5",
     max_tokens: 8000,
-    temperature: 0.3, // Lower temperature for more consistent JSON output
+    temperature: 0.3,
     system: system,
     messages: [{ role: "user", content: userMessage }],
+    tools: [tool as Tool],
+    tool_choice: { type: "tool", name: tool.name }
   });
 
-  return stream;
+  // Extract the tool use response
+  const toolUse = message.content.find((block) => block.type === "tool_use");
+
+  if (!toolUse || toolUse.type !== "tool_use") {
+    throw new Error("No tool use found in response");
+  }
+
+  return toolUse.input;
 }
+

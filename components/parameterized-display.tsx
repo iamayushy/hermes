@@ -238,7 +238,7 @@ export function ParameterizedDisplay({ data }: { data: string }) {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-destructive">
                             <AlertTriangle className="h-5 w-5" />
-                            Critical Flags
+                            Material Risk Factors
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
@@ -268,7 +268,7 @@ export function ParameterizedDisplay({ data }: { data: string }) {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <Shield className="h-5 w-5 text-primary" />
-                            Mandatory Provisions Compliance
+                            Provisions requiring mandatory compliance & immediate attention
                         </CardTitle>
                         <CardDescription>
                             Provisions that require strict compliance - AI monitors and flags only
@@ -304,8 +304,7 @@ export function ParameterizedDisplay({ data }: { data: string }) {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-blue-700 dark:text-blue-400">
                             <TrendingUp className="h-5 w-5" />
-                            Optimization Opportunities
-                        </CardTitle>
+Procedo suggested improvements for optimizable provisions                        </CardTitle>
                         <CardDescription className="flex items-start gap-2">
                             <Info className="h-3 w-3 mt-0.5 shrink-0" />
                             <span className="text-xs">

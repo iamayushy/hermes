@@ -237,5 +237,87 @@
                 "description": "Critical items missing"
             }
         ]
+    },
+    "critical_flags_categories": {
+        "description": "Categories of critical issues that must be flagged during analysis",
+        "categories": [
+            {
+                "category": "Jurisdictional Defects",
+                "severity_default": "critical",
+                "annulment_risk": true,
+                "examples": [
+                    "Improper tribunal constitution",
+                    "Lack of consent to arbitration",
+                    "Jurisdiction not established"
+                ],
+                "detection_criteria": "Issues that may invalidate the tribunal's authority to hear the case"
+            },
+            {
+                "category": "Procedural Violations",
+                "severity_default": "high",
+                "annulment_risk": true,
+                "examples": [
+                    "Violation of fundamental procedural rules",
+                    "Failure to provide equal treatment",
+                    "Breach of due process rights"
+                ],
+                "detection_criteria": "Violations of mandatory procedural requirements that could lead to annulment"
+            },
+            {
+                "category": "Timeline Violations",
+                "severity_default": "medium",
+                "annulment_risk": false,
+                "examples": [
+                    "Missed statutory deadlines",
+                    "Unreasonable timeline extensions",
+                    "Award rendered outside time limits"
+                ],
+                "detection_criteria": "Failure to comply with mandatory time limits under applicable rules"
+            },
+            {
+                "category": "Evidence Management Issues",
+                "severity_default": "high",
+                "annulment_risk": true,
+                "examples": [
+                    "Admission of inadmissible evidence",
+                    "Failure to consider key evidence",
+                    "Violation of evidence production rules"
+                ],
+                "detection_criteria": "Issues related to evidence handling that violate fundamental fairness"
+            },
+            {
+                "category": "Party Representation Defects",
+                "severity_default": "critical",
+                "annulment_risk": true,
+                "examples": [
+                    "Unauthorized representation",
+                    "Missing power of attorney",
+                    "Conflict of interest in counsel"
+                ],
+                "detection_criteria": "Issues with party representation that may affect validity of proceedings"
+            },
+            {
+                "category": "Award Compliance Issues",
+                "severity_default": "critical",
+                "annulment_risk": true,
+                "examples": [
+                    "Missing mandatory award elements",
+                    "Failure to state reasons",
+                    "Ultra petita (exceeding party requests)"
+                ],
+                "detection_criteria": "Award does not meet mandatory content requirements under applicable rules"
+            },
+            {
+                "category": "Cost and Fee Irregularities",
+                "severity_default": "medium",
+                "annulment_risk": false,
+                "examples": [
+                    "Improper cost allocation",
+                    "Missing fee payment records",
+                    "Unexplained cost increases"
+                ],
+                "detection_criteria": "Issues with costs, fees, or financial aspects of the arbitration"
+            }
+        ]
     }
 }
