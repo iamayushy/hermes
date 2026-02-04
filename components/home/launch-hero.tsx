@@ -23,13 +23,13 @@ export function LaunchHero() {
                 </div>
 
                 <h1 className="text-4xl md:text-7xl font-black tracking-tight text-foreground mb-6 leading-tight">
-                    Procedo <span className="text-primary italic">
-                        an AI intelligence tool built for the GAR - LCIA Hackathon
+                    Procedo - <span className="text-primary italic">
+                        Ensuring award integrity and procedural compliance through advanced AI analysis
                     </span>
                 </h1>
 
                 <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-16 leading-relaxed font-medium">
-                    Ensuring award integrity and procedural compliance through advanced AI analysis. Choose your entry point to the Procedo ecosystem.
+                    (A tool built for the GAR - LCIA Hackathon)
                 </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">

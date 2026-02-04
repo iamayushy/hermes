@@ -7,7 +7,7 @@ import { AlertCircle } from "lucide-react";
 
 export default function RootPage() {
     return (
-        <main className="min-h-screen bg-background text-foreground scroll-smooth">
+        <main className="min-h-screen bg-background text-foreground scroll-smooth flex flex-col">
             <Navbar />
             <LaunchHero />
             <Footer />
